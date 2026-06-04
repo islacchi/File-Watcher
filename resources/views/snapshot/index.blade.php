@@ -1,0 +1,154 @@
+<x-layouts.app :title="'Snapshot'">
+    <div class="flex gap-6">
+        {{-- Directory Tree (Left Panel - 20%) --}}
+        <aside class="hidden lg:block w-64 flex-shrink-0">
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sticky top-20">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Directories</h3>
+
+                <div class="overflow-y-auto max-h-[calc(100vh-10rem)]">
+                    @if (empty($directoryTree))
+                        <p class="text-xs text-gray-400 dark:text-gray-500">No directories found</p>
+                    @else
+                        {{-- All Files Link --}}
+                        <div class="mb-2">
+                            <a
+                                href="{{ route('filewatcher.snapshot') }}"
+                                class="flex items-center gap-1.5 text-sm px-2 py-1 rounded-md transition-colors
+                                    {{ !$currentDirectory
+                                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
+                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
+                                    }}"
+                            >
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                </svg>
+                                All Files
+                            </a>
+                        </div>
+
+                        <x-directory-tree :nodes="$directoryTree" :current-directory="$currentDirectory" />
+                    @endif
+                </div>
+            </div>
+        </aside>
+
+        {{-- Right Panel: File Table (80%) --}}
+        <div class="flex-1 min-w-0">
+            {{-- Breadcrumb --}}
+            @if ($currentDirectory)
+                <div class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    <a href="{{ route('filewatcher.snapshot') }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                        All Files
+                    </a>
+                    @php
+                        $parts = array_values(array_filter(explode('\\', $currentDirectory)));
+                    @endphp
+                    @php $cumulative = ''; @endphp
+                    @foreach ($parts as $index => $part)
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        @php
+                            $cumulative .= ($cumulative ? '\\' : '') . $part;
+                            $isActive = $cumulative === $currentDirectory;
+                        @endphp
+                        @if ($isActive)
+                            <span class="text-gray-900 dark:text-white font-medium">{{ $part }}</span>
+                        @else
+                            <a href="{{ route('filewatcher.snapshot', ['directory' => $cumulative]) }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                                {{ $part }}
+                            </a>
+                        @endif
+                    @endforeach
+                </div>
+            @endif
+
+            {{-- Search --}}
+            <form method="GET" action="{{ route('filewatcher.snapshot') }}" class="flex gap-2 mb-4">
+                @if ($currentDirectory)
+                    <input type="hidden" name="directory" value="{{ $currentDirectory }}">
+                @endif
+                <div class="relative flex-1 max-w-md">
+                    <input
+                        type="text"
+                        name="search"
+                        value="{{ $filters['search'] ?? '' }}"
+                        placeholder="Search files..."
+                        class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+            </form>
+
+            {{-- Snapshot Table --}}
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                @if ($snapshots->isEmpty())
+                    <x-empty-state
+                        title="No files found"
+                        description="No snapshot data matches your current filters. Try adjusting the search criteria or selecting a different directory."
+                        icon="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M4 7c0-2 1-3 3-3h10c2 0 3 1 3 3M4 7h16M9 11h.01M15 11h.01M9 15h.01M15 15h.01"
+                    />
+                @else
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Path</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Size</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Hash</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Seen</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                @foreach ($snapshots as $snapshot)
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors {{ $snapshot->isStale ? 'bg-yellow-50/50 dark:bg-yellow-900/10' : '' }}">
+                                        <td class="px-4 py-3 max-w-lg">
+                                            <div class="flex items-center gap-2">
+                                                @if ($snapshot->isStale)
+                                                    <svg class="w-4 h-4 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Not seen in over 7 days">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                                    </svg>
+                                                @endif
+                                                <x-file-path :path="$snapshot->path" :truncated="$snapshot->truncatedPath" />
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $snapshot->formattedSize }}
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <x-hash-display :hash="$snapshot->md5Hash" :truncated="$snapshot->truncatedHash" />
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-xs text-gray-500 dark:text-gray-400" title="{{ $snapshot->formattedLastSeen }}">
+                                                {{ $snapshot->relativeLastSeen }}
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <a
+                                                href="{{ route('filewatcher.files.timeline', ['path' => $snapshot->path]) }}"
+                                                class="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+                                                title="View timeline for this file"
+                                            >
+                                                View timeline →
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {{-- Pagination --}}
+                    @if ($snapshots->hasPages())
+                        <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                            {{ $snapshots->withQueryString()->links('pagination::tailwind') }}
+                        </div>
+                    @endif
+                @endif
+            </div>
+        </div>
+    </div>
+</x-layouts.app>

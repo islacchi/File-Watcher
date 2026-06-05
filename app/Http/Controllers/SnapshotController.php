@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SnapshotFilterRequest;
+use App\Services\ConfigService;
 use App\Services\SnapshotService;
 use App\View\Models\SnapshotViewModel;
 
@@ -12,6 +13,7 @@ class SnapshotController extends Controller
 {
     public function __construct(
         private readonly SnapshotService $snapshotService,
+        private readonly ConfigService $configService,
     ) {}
 
     /**
@@ -52,6 +54,7 @@ class SnapshotController extends Controller
             'directoryTree' => $directoryTree,
             'extensions' => $extensions,
             'currentDirectory' => $directory,
+            'watchDirectory' => $this->configService->getWatchDirectory(),
         ]);
     }
 }

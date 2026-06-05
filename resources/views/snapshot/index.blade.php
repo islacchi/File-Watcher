@@ -6,27 +6,28 @@
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Directories</h3>
 
                 <div class="overflow-y-auto max-h-[calc(100vh-10rem)]">
-                    @if (empty($directoryTree))
-                        <p class="text-xs text-gray-400 dark:text-gray-500">No directories found</p>
-                    @else
-                        {{-- All Files Link --}}
-                        <div class="mb-2">
-                            <a
-                                href="{{ route('filewatcher.snapshot') }}"
-                                class="flex items-center gap-1.5 text-sm px-2 py-1 rounded-md transition-colors
-                                    {{ !$currentDirectory
-                                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
-                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
-                                    }}"
-                            >
-                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
-                                </svg>
-                                All Files
-                            </a>
-                        </div>
+                    {{-- Watch Directory Root --}}
+                    <div class="mb-2">
+                        <a
+                            href="{{ route('filewatcher.snapshot') }}"
+                            class="flex items-center gap-1.5 text-sm px-2 py-1 rounded-md transition-colors
+                                {{ !$currentDirectory
+                                    ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
+                                }}"
+                            title="{{ $watchDirectory }}"
+                        >
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                            </svg>
+                            <span class="truncate font-mono text-xs">{{ $watchDirectory }}</span>
+                        </a>
+                    </div>
 
+                    @if (! empty($directoryTree))
                         <x-directory-tree :nodes="$directoryTree" :current-directory="$currentDirectory" />
+                    @else
+                        <p class="text-xs text-gray-400 dark:text-gray-500 px-2">No subdirectories found</p>
                     @endif
                 </div>
             </div>
@@ -64,15 +65,33 @@
             @endif
 
             {{-- Search --}}
-            <form method="GET" action="{{ route('filewatcher.snapshot') }}" class="flex gap-2 mb-4">
+            <form
+                method="GET"
+                action="{{ route('filewatcher.snapshot') }}"
+                x-data="{
+                    search: '{{ addslashes($filters['search'] ?? '') }}',
+                    submit() {
+                        const params = new URLSearchParams(window.location.search);
+                        if (this.search) {
+                            params.set('search', this.search);
+                        } else {
+                            params.delete('search');
+                        }
+                        params.delete('page');
+                        window.location.href = '{{ route('filewatcher.snapshot') }}?' + params.toString();
+                    }
+                }"
+                class="flex gap-2 mb-4"
+                @submit.prevent
+            >
                 @if ($currentDirectory)
                     <input type="hidden" name="directory" value="{{ $currentDirectory }}">
                 @endif
                 <div class="relative flex-1 max-w-md">
                     <input
                         type="text"
-                        name="search"
-                        value="{{ $filters['search'] ?? '' }}"
+                        x-model="search"
+                        @input.debounce.300ms="submit()"
                         placeholder="Search files..."
                         class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     />

@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Cache;
 
 class SnapshotService
 {
+    public function __construct(
+        private readonly ConfigService $configService,
+    ) {}
     /**
      * Get the total number of tracked files.
      */
@@ -60,30 +63,35 @@ class SnapshotService
     public function getDirectoryTree(): array
     {
         return Cache::remember('snapshots_directory_tree', 120, function (): array {
-            // Get all paths and extract unique directory structure in one pass
             $paths = Snapshot::select('path')->pluck('path')->toArray();
 
-            // Build tree structure from paths
+            // Strip the watch directory prefix so the tree starts from the watch directory level
+            $watchDir = rtrim($this->configService->getWatchDirectory(), '\\/');
+            $watchDirParts = array_values(array_filter(explode('\\', $watchDir)));
+            $watchDepth = count($watchDirParts);
+
             $tree = [];
 
             foreach ($paths as $path) {
-                // Keep drive letter prefix (e.g., "K:\") so LIKE queries match
-                $cleanDir = $path;
-                $parts = array_values(array_filter(explode('\\', $cleanDir)));
+                $parts = array_values(array_filter(explode('\\', $path)));
 
-                if (count($parts) < 1) {
+                if (count($parts) <= $watchDepth) {
+                    // Path is at or above the watch directory — skip
                     continue;
                 }
 
-                // Only process first 3 levels for the tree (drive\parent\child)
-                $maxLevel = min(count($parts), 3);
+                // Get only the parts below the watch directory
+                $relativeParts = array_slice($parts, $watchDepth);
+                $maxLevel = min(count($relativeParts), 3);
                 $current = &$tree;
 
                 for ($i = 0; $i < $maxLevel; $i++) {
-                    $part = $parts[$i];
+                    $part = $relativeParts[$i];
 
                     if (! isset($current[$part])) {
-                        $currentPath = implode('\\', array_slice($parts, 0, $i + 1));
+                        // Build the full path (watch dir + relative parts) for LIKE queries
+                        $fullParts = array_merge($watchDirParts, array_slice($relativeParts, 0, $i + 1));
+                        $currentPath = implode('\\', $fullParts);
                         $current[$part] = [
                             'path' => $currentPath,
                             'name' => $part,
@@ -92,8 +100,8 @@ class SnapshotService
                         ];
                     }
 
-                    // Count files (leaf nodes where this is the last part)
-                    if ($i === count($parts) - 1) {
+                    // Count files (leaf nodes where this is the last relative part)
+                    if ($i === count($relativeParts) - 1) {
                         $current[$part]['file_count']++;
                     }
 

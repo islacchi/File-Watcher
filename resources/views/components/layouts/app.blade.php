@@ -52,6 +52,7 @@
                 $navItems = [
                     ['route' => 'filewatcher.dashboard', 'label' => 'Dashboard', 'icon' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'],
                     ['route' => 'filewatcher.events', 'label' => 'Events Log', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
+                    ['route' => 'filewatcher.files.timeline', 'label' => 'File Timeline', 'icon' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
                     ['route' => 'filewatcher.snapshot', 'label' => 'Snapshot', 'icon' => 'M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M4 7c0-2 1-3 3-3h10c2 0 3 1 3 3M4 7h16M9 11h.01M15 11h.01M9 15h.01M15 15h.01'],
                 ];
             @endphp
@@ -104,18 +105,20 @@
                 </div>
 
                 {{-- Right: Status + Dark Mode --}}
-                <div class="flex items-center gap-4">
+                <div x-data="{ status: 'online' }" class="flex items-center gap-4">
                     {{-- Watched Directory --}}
                     <div class="hidden sm:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
                         </svg>
-                        <span class="font-mono">K:\</span>
+                        <span class="font-mono" title="{{ $watchDirectory }}">{{ $watchDirectory }}</span>
+                        @if ($scriptVersion)
+                            <span class="text-gray-400 dark:text-gray-500">v{{ $scriptVersion }}</span>
+                        @endif
                     </div>
 
-                    {{-- Status Indicator --}}
+                    {{-- Status Indicator (single health check poll) --}}
                     <div
-                        x-data="{ status: 'online' }"
                         x-init="
                             const check = async () => {
                                 try {
@@ -137,23 +140,6 @@
                             :class="status === 'online' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'"
                         ></span>
                     </div>
-
-                    {{-- Offline Banner --}}
-                    <div x-data="{ status: 'online' }"
-                        x-init="
-                            const check = async () => {
-                                try {
-                                    const resp = await fetch('{{ route('filewatcher.health') }}');
-                                    const data = await resp.json();
-                                    status = data.status;
-                                } catch { status = 'offline'; }
-                            };
-                            check();
-                            setInterval(check, 15000);
-                        "
-                        x-show="status === 'offline'"
-                        class="hidden"
-                    ></div>
 
                     {{-- Auto-refresh Toggle --}}
                     <div x-data="{ autoRefresh: localStorage.getItem('autoRefresh') === 'true' }" class="flex items-center gap-2">

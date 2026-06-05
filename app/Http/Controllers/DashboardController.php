@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\ConfigService;
 use App\Services\EventService;
 use App\Services\SnapshotService;
 use App\View\Models\DashboardViewModel;
@@ -15,6 +16,7 @@ class DashboardController extends Controller
     public function __construct(
         private readonly EventService $eventService,
         private readonly SnapshotService $snapshotService,
+        private readonly ConfigService $configService,
     ) {}
 
     /**
@@ -28,11 +30,15 @@ class DashboardController extends Controller
         $yesterdayDeletions = $this->eventService->getYesterdayCount();
         $totalTracked = $this->snapshotService->getTotalTracked();
 
+        // Use the config table's started_at if available, otherwise fall back to first event today
+        $lastStartupTime = $this->configService->getStartedAt()
+            ?? $this->eventService->getLastStartupTime();
+
         $viewModel = new DashboardViewModel(
             eventsToday: $todayCount,
             deletionsLast24h: $deletionsLast24h,
             totalTrackedFiles: $totalTracked,
-            lastStartupTime: $this->eventService->getLastStartupTime(),
+            lastStartupTime: $lastStartupTime,
             todayTrend: \App\Services\Formatter::trendPercent($todayCount, $yesterdayCount),
             deletionsTrend: \App\Services\Formatter::trendPercent($deletionsLast24h, $yesterdayDeletions),
             sparkline: $this->eventService->getDailyCountsForWeek(),

@@ -176,11 +176,12 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
-                                    <x-event-badge
-                                        :label="$event->badgeLabel"
-                                        :color="$event->badgeColor"
-                                        :icon="$event->iconName"
-                                    />
+                                    <div class="flex items-center justify-start">
+                                        <x-event-badge
+                                            :label="$event->badgeLabel"
+                                            :color="$event->badgeColor"
+                                        />
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 max-w-lg">
                                     <x-file-path :path="$event->srcPath" :truncated="$event->truncatedPath" />

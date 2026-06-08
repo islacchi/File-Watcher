@@ -62,56 +62,66 @@ class SnapshotService
      */
     public function getDirectoryTree(): array
     {
-        return Cache::remember('snapshots_directory_tree', 120, function (): array {
-            $paths = Snapshot::select('path')->pluck('path')->toArray();
+        return Cache::remember('snapshots_directory_tree', 120, fn (): array => $this->buildDirectoryTree());
+    }
 
-            // Strip the watch directory prefix so the tree starts from the watch directory level
-            $watchDir = rtrim($this->configService->getWatchDirectory(), '\\/');
-            $watchDirParts = array_values(array_filter(explode('\\', $watchDir)));
-            $watchDepth = count($watchDirParts);
+    /**
+     * Build the directory tree without caching (for real-time AJAX polling).
+     */
+    public function getDirectoryTreeFresh(): array
+    {
+        return $this->buildDirectoryTree();
+    }
 
-            $tree = [];
+    /**
+     * Core directory tree building logic.
+     */
+    private function buildDirectoryTree(): array
+    {
+        $paths = Snapshot::select('path')->pluck('path')->toArray();
 
-            foreach ($paths as $path) {
-                $parts = array_values(array_filter(explode('\\', $path)));
+        // Strip the watch directory prefix so the tree starts from the watch directory level
+        $watchDir = rtrim($this->configService->getWatchDirectory(), '\\/');
+        $watchDirParts = array_values(array_filter(explode('\\', $watchDir)));
+        $watchDepth = count($watchDirParts);
 
-                if (count($parts) <= $watchDepth) {
-                    // Path is at or above the watch directory — skip
-                    continue;
-                }
+        $tree = [];
 
-                // Get only the parts below the watch directory
-                $relativeParts = array_slice($parts, $watchDepth);
-                $maxLevel = min(count($relativeParts), 3);
-                $current = &$tree;
+        foreach ($paths as $path) {
+            $parts = array_values(array_filter(explode('\\', $path)));
 
-                for ($i = 0; $i < $maxLevel; $i++) {
-                    $part = $relativeParts[$i];
-
-                    if (! isset($current[$part])) {
-                        // Build the full path (watch dir + relative parts) for LIKE queries
-                        $fullParts = array_merge($watchDirParts, array_slice($relativeParts, 0, $i + 1));
-                        $currentPath = implode('\\', $fullParts);
-                        $current[$part] = [
-                            'path' => $currentPath,
-                            'name' => $part,
-                            'children' => [],
-                            'file_count' => 0,
-                        ];
-                    }
-
-                    // Count files (leaf nodes where this is the last relative part)
-                    if ($i === count($relativeParts) - 1) {
-                        $current[$part]['file_count']++;
-                    }
-
-                    $current = &$current[$part]['children'];
-                }
+            if (count($parts) <= $watchDepth) {
+                continue;
             }
-            unset($current);
 
-            return $this->buildTreeArray($tree);
-        });
+            $relativeParts = array_slice($parts, $watchDepth);
+            $maxLevel = min(count($relativeParts), 3);
+            $current = &$tree;
+
+            for ($i = 0; $i < $maxLevel; $i++) {
+                $part = $relativeParts[$i];
+
+                if (! isset($current[$part])) {
+                    $fullParts = array_merge($watchDirParts, array_slice($relativeParts, 0, $i + 1));
+                    $currentPath = implode('\\', $fullParts);
+                    $current[$part] = [
+                        'path' => $currentPath,
+                        'name' => $part,
+                        'children' => [],
+                        'file_count' => 0,
+                    ];
+                }
+
+                if ($i === count($relativeParts) - 1) {
+                    $current[$part]['file_count']++;
+                }
+
+                $current = &$current[$part]['children'];
+            }
+        }
+        unset($current);
+
+        return $this->buildTreeArray($tree);
     }
 
     /**

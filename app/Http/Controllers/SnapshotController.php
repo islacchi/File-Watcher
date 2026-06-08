@@ -8,6 +8,7 @@ use App\Http\Requests\SnapshotFilterRequest;
 use App\Services\ConfigService;
 use App\Services\SnapshotService;
 use App\View\Models\SnapshotViewModel;
+use Illuminate\Http\Response;
 
 class SnapshotController extends Controller
 {
@@ -56,5 +57,18 @@ class SnapshotController extends Controller
             'currentDirectory' => $directory,
             'watchDirectory' => $this->configService->getWatchDirectory(),
         ]);
+    }
+
+    /**
+     * Return the directory tree as rendered HTML for AJAX polling.
+     */
+    public function tree(): Response
+    {
+        $directoryTree = $this->snapshotService->getDirectoryTreeFresh();
+        $currentDirectory = request()->input('directory');
+
+        $html = view('snapshot._tree', compact('directoryTree', 'currentDirectory'))->render();
+
+        return response($html)->header('Content-Type', 'text/html');
     }
 }

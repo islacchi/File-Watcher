@@ -5,7 +5,26 @@
             <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sticky top-20">
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Directories</h3>
 
-                <div class="overflow-y-auto max-h-[calc(100vh-10rem)]">
+                <div
+                    x-data="{
+                        treeHtml: '',
+                        async refreshTree() {
+                            try {
+                                const params = new URLSearchParams();
+                                @if ($currentDirectory)
+                                    params.set('directory', '{{ $currentDirectory }}');
+                                @endif
+                                const resp = await fetch('{{ route('filewatcher.snapshot.tree') }}?' + params.toString());
+                                if (resp.ok) this.treeHtml = await resp.text();
+                            } catch {}
+                        },
+                        init() {
+                            this.refreshTree();
+                            setInterval(() => this.refreshTree(), 15000);
+                        }
+                    }"
+                    class="overflow-y-auto max-h-[calc(100vh-10rem)]"
+                >
                     {{-- Watch Directory Root --}}
                     <div class="mb-2">
                         <a
@@ -24,11 +43,8 @@
                         </a>
                     </div>
 
-                    @if (! empty($directoryTree))
-                        <x-directory-tree :nodes="$directoryTree" :current-directory="$currentDirectory" />
-                    @else
-                        <p class="text-xs text-gray-400 dark:text-gray-500 px-2">No subdirectories found</p>
-                    @endif
+                    {{-- Tree content populated by AJAX polling --}}
+                    <div x-html="treeHtml"></div>
                 </div>
             </div>
         </aside>

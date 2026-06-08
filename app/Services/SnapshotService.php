@@ -50,7 +50,21 @@ class SnapshotService
             $query->where('path', 'LIKE', $directory . '%');
         }
 
+        // Filter by exact file path (single-file view)
+        if (! empty($filters['path'])) {
+            $query->where('path', '=', $filters['path']);
+        }
+
         return $query->orderByDesc('last_seen')->paginate($perPage);
+    }
+
+    /**
+     * Get a single snapshot by its exact file path.
+     * Used by single-file view when clicking a file in the tree.
+     */
+    public function getSnapshotByPath(string $path): ?Snapshot
+    {
+        return Snapshot::where('path', $path)->first();
     }
 
     /**
@@ -85,6 +99,9 @@ class SnapshotService
         $watchDirParts = array_values(array_filter(explode('\\', $watchDir)));
         $watchDepth = count($watchDirParts);
 
+        // Detect UNC prefix (e.g., \\Kyle\ → UNC) — paths in the DB use UNC format
+        $uncPrefix = str_starts_with($watchDir, '\\\\') ? '\\\\' : '';
+
         $tree = [];
 
         foreach ($paths as $path) {
@@ -95,7 +112,8 @@ class SnapshotService
             }
 
             $relativeParts = array_slice($parts, $watchDepth);
-            $maxLevel = min(count($relativeParts), 3);
+            // No depth limit — build the full tree to any depth
+            $maxLevel = count($relativeParts);
             $current = &$tree;
 
             for ($i = 0; $i < $maxLevel; $i++) {
@@ -103,7 +121,8 @@ class SnapshotService
 
                 if (! isset($current[$part])) {
                     $fullParts = array_merge($watchDirParts, array_slice($relativeParts, 0, $i + 1));
-                    $currentPath = implode('\\', $fullParts);
+                    // Reconstruct the full path with the UNC prefix for correct LIKE queries
+                    $currentPath = $uncPrefix . implode('\\', $fullParts);
                     $current[$part] = [
                         'path' => $currentPath,
                         'name' => $part,

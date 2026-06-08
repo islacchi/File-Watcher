@@ -46,9 +46,11 @@
                         <span class="w-[14px] flex-shrink-0"></span>
                     @endif
 
-                    {{-- Directory Link --}}
+                    {{-- Directory/File Link (base64 encode to preserve UNC paths with backslashes) --}}
                     <a
-                        href="{{ route('filewatcher.snapshot', ['directory' => $node['path']]) }}"
+                        href="{{ $isLeafFile
+                            ? route('filewatcher.snapshot', ['path' => base64_encode($node['path'])])
+                            : route('filewatcher.snapshot', ['directory' => base64_encode($node['path'])]) }}"
                         class="flex items-center gap-1.5 text-sm px-2 py-1 rounded-md transition-colors truncate max-w-[200px] {{ $isSelected
                             ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
                             : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'

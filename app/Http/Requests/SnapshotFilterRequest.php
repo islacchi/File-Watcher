@@ -27,6 +27,7 @@ class SnapshotFilterRequest extends FormRequest
             'search' => ['nullable', 'string', 'max:255'],
             'extension' => ['nullable', 'string', 'max:20'],
             'directory' => ['nullable', 'string', 'max:500'],
+            'path' => ['nullable', 'string', 'max:500'],
             'page' => ['nullable', 'integer', 'min:1'],
         ];
     }

@@ -24,9 +24,24 @@ class SnapshotController extends Controller
     {
         $filters = $request->validated();
 
-        $directory = $filters['directory'] ?? null;
+        // Directory and path are base64-encoded to preserve UNC paths with backslashes
+        $directory = $this->decodeBase64Param($filters['directory'] ?? null);
+        $filePath = $this->decodeBase64Param($filters['path'] ?? null);
 
-        if ($directory) {
+        $paginatedSnapshots = null;
+        $singleSnapshot = null;
+
+        if ($filePath !== null) {
+            // Single-file view: filter table to show only this one file
+            $filters['path'] = $filePath;
+            $paginatedSnapshots = $this->snapshotService->getFilteredSnapshots($filters, perPage: 50);
+            $paginatedSnapshots->setCollection(
+                $paginatedSnapshots->getCollection()->map(
+                    fn ($snapshot) => SnapshotViewModel::fromModel($snapshot),
+                )
+            );
+            $singleSnapshot = $this->snapshotService->getSnapshotByPath($filePath);
+        } elseif ($directory) {
             $snapshots = $this->snapshotService->getFilesInDirectory($directory);
             $snapshotViewModels = $snapshots->map(
                 fn ($snapshot) => SnapshotViewModel::fromModel($snapshot),
@@ -40,10 +55,11 @@ class SnapshotController extends Controller
             );
         } else {
             $paginatedSnapshots = $this->snapshotService->getFilteredSnapshots($filters, perPage: 50);
-            $snapshotViewModels = $paginatedSnapshots->getCollection()->map(
-                fn ($snapshot) => SnapshotViewModel::fromModel($snapshot),
+            $paginatedSnapshots->setCollection(
+                $paginatedSnapshots->getCollection()->map(
+                    fn ($snapshot) => SnapshotViewModel::fromModel($snapshot),
+                )
             );
-            $paginatedSnapshots->setCollection($snapshotViewModels);
         }
 
         $directoryTree = $this->snapshotService->getDirectoryTree();
@@ -55,12 +71,29 @@ class SnapshotController extends Controller
             'directoryTree' => $directoryTree,
             'extensions' => $extensions,
             'currentDirectory' => $directory,
+            'currentFilePath' => $filePath,
+            'singleSnapshot' => $singleSnapshot,
             'watchDirectory' => $this->configService->getWatchDirectory(),
         ]);
     }
 
     /**
+     * Decode a base64-encoded query parameter back to its original string.
+     * Falls back to the original value if decoding fails.
+     */
+    private function decodeBase64Param(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $decoded = base64_decode($value, true);
+        return $decoded !== false ? $decoded : $value;
+    }
+
+    /**
      * Return the directory tree as rendered HTML for AJAX polling.
+     * Called every 15 seconds by Alpine.js on the snapshot page.
+     * Falls back to cached tree if the fresh build fails.
      */
     public function tree(): Response
     {

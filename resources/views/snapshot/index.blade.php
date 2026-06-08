@@ -8,6 +8,7 @@
                 <div
                     x-data="{
                         treeHtml: '',
+                        treeContainer: null,
                         async refreshTree() {
                             try {
                                 const params = new URLSearchParams();
@@ -15,10 +16,19 @@
                                     params.set('directory', '{{ $currentDirectory }}');
                                 @endif
                                 const resp = await fetch('{{ route('filewatcher.snapshot.tree') }}?' + params.toString());
-                                if (resp.ok) this.treeHtml = await resp.text();
+                                if (resp.ok) {
+                                    this.treeHtml = await resp.text();
+                                    // Recompile Alpine directives in the new DOM
+                                    this.$nextTick(() => {
+                                        if (this.treeContainer) {
+                                            Alpine.initTree(this.treeContainer);
+                                        }
+                                    });
+                                }
                             } catch {}
                         },
                         init() {
+                            this.treeContainer = this.$el;
                             this.refreshTree();
                             setInterval(() => this.refreshTree(), 15000);
                         }
@@ -43,16 +53,48 @@
                         </a>
                     </div>
 
-                    {{-- Tree content populated by AJAX polling --}}
-                    <div x-html="treeHtml"></div>
+                    {{-- Tree content refreshed every 15 seconds --}}
+                    <div x-html="treeHtml" id="snapshot-tree-container"></div>
                 </div>
             </div>
         </aside>
 
         {{-- Right Panel: File Table (80%) --}}
         <div class="flex-1 min-w-0">
-            {{-- Breadcrumb --}}
-            @if ($currentDirectory)
+            {{-- Single-File Breadcrumb (when ?path= is set) --}}
+            @if ($currentFilePath)
+                @php
+                    $parentDir = dirname($currentFilePath);
+                @endphp
+                <div class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    <a href="{{ route('filewatcher.snapshot') }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                        All Files
+                    </a>
+                    @php
+                        $parts = array_values(array_filter(explode('\\', $parentDir)));
+                    @endphp
+                    @php $cumulative = ''; @endphp
+                    @foreach ($parts as $part)
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        @php
+                            $cumulative .= ($cumulative ? '\\' : '') . $part;
+                        @endphp
+                        <a href="{{ route('filewatcher.snapshot', ['directory' => base64_encode($cumulative)]) }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                            {{ $part }}
+                        </a>
+                    @endforeach
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                    <span class="text-gray-900 dark:text-white font-medium">{{ basename($currentFilePath) }}</span>
+                    <a href="{{ route('filewatcher.snapshot', ['directory' => base64_encode($parentDir)]) }}" class="ml-auto text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors" title="Back to parent directory">
+                        ← Back to parent
+                    </a>
+                </div>
+            {{-- Directory Breadcrumb --}}
+            @elseif ($currentDirectory)
                 <div class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-4">
                     <a href="{{ route('filewatcher.snapshot') }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                         All Files
@@ -72,7 +114,7 @@
                         @if ($isActive)
                             <span class="text-gray-900 dark:text-white font-medium">{{ $part }}</span>
                         @else
-                            <a href="{{ route('filewatcher.snapshot', ['directory' => $cumulative]) }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                            <a href="{{ route('filewatcher.snapshot', ['directory' => base64_encode($cumulative)]) }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                                 {{ $part }}
                             </a>
                         @endif

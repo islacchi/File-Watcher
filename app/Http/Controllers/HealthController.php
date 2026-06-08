@@ -17,28 +17,36 @@ class HealthController extends Controller
 
     /**
      * Health check endpoint that returns online/offline status.
-     * Online if events table was updated in the last 60 seconds.
+     *
+     * Primary check: reads the heartbeat timestamp from the config table.
+     * The Python script upserts this every 30 seconds while running.
+     * We consider the script online if the heartbeat is within 90 seconds.
+     *
+     * Fallback: checks the last event timestamp (within 60 seconds)
+     * for backwards compatibility before the heartbeat was introduced.
+     *
      * Includes config metadata from the Python script for the frontend.
      */
     public function check(): JsonResponse
     {
-        $lastEvent = Event::orderByDesc('timestamp')->first();
+        $heartbeat = $this->configService->get('heartbeat');
+        $isOnline = false;
 
-        if ($lastEvent === null) {
-            return response()->json([
-                'status' => 'offline',
-                'watch_directory' => $this->configService->getWatchDirectory(),
-                'script_version' => $this->configService->getScriptVersion(),
-                'started_at' => $this->configService->getStartedAt(),
-            ]);
+        if ($heartbeat !== null) {
+            // Primary: check heartbeat (script writes every 30s, threshold 90s)
+            $isOnline = Carbon::parse($heartbeat)->diffInSeconds(Carbon::now()) <= 90;
+        } else {
+            // Fallback: check last event timestamp for older script versions
+            $lastEvent = Event::orderByDesc('timestamp')->first();
+
+            if ($lastEvent !== null) {
+                $isOnline = Carbon::parse($lastEvent->timestamp)->diffInSeconds(Carbon::now()) <= 60;
+            }
         }
-
-        $lastTimestamp = Carbon::parse($lastEvent->timestamp);
-        $isOnline = $lastTimestamp->diffInSeconds(Carbon::now()) <= 60;
 
         return response()->json([
             'status' => $isOnline ? 'online' : 'offline',
-            'last_event' => $lastEvent->timestamp,
+            'heartbeat' => $heartbeat,
             'watch_directory' => $this->configService->getWatchDirectory(),
             'script_version' => $this->configService->getScriptVersion(),
             'started_at' => $this->configService->getStartedAt(),

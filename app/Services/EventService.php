@@ -209,8 +209,13 @@ class EventService
                     ->orWhere('dest_path', 'LIKE', "%.{$ext}");
             });
         }
+        $sortBy = $filters['sort_by'] ?? 'time';
+        $sortDir = $filters['sort_dir'] ?? 'desc';
 
-        return $query->orderByDesc('timestamp')->paginate($perPage);
+        $allowedSorts = ['time' => 'timestamp', 'size' => 'file_size'];
+        $sortColumn = $allowedSorts[$sortBy] ?? 'timestamp';
+
+        return $query->orderBy($sortColumn, $sortDir === 'asc' ? 'asc' : 'desc')->paginate($perPage);
     }
 
     /**

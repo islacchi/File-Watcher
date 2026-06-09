@@ -93,7 +93,7 @@ class Formatter
             return $hash;
         }
 
-        return mb_substr($hash, 0, 8) . '…';
+        return mb_substr($hash, 0, 32);
     }
 
     /**

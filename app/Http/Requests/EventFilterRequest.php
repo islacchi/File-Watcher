@@ -32,6 +32,8 @@ class EventFilterRequest extends FormRequest
             'date_to' => ['nullable', 'date'],
             'extension' => ['nullable', 'string', 'max:20'],
             'page' => ['nullable', 'integer', 'min:1'],
+            'sort_by' => ['nullable', 'string', 'in:time,size'],
+            'sort_dir' => ['nullable', 'string', 'in:asc,desc'],
         ];
     }
 }

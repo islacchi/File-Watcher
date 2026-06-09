@@ -13,6 +13,8 @@ export default defineConfig({
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],
+            host: '0.0.0.0', // This makes Vite listen on all network interfaces
+            port: 5173,      // Or your Vite port
         },
     },
 });

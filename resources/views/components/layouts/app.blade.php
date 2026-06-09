@@ -15,6 +15,8 @@
 
 <div x-data="{
     sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
+    status: 'online',
+    pollingInterval: null,
     toggleSidebar() {
         this.sidebarOpen = !this.sidebarOpen;
         localStorage.setItem('sidebarOpen', this.sidebarOpen);
@@ -22,6 +24,20 @@
     toggleDark() {
         this.dark = !this.dark;
         localStorage.setItem('dark', this.dark);
+    },
+    async checkHealth() {
+        try {
+            const resp = await fetch('{{ route('filewatcher.health') }}');
+            const data = await resp.json();
+            this.status = data.status;
+        } catch { this.status = 'offline'; }
+    },
+    init() {
+        this.checkHealth();
+        this.pollingInterval = setInterval(() => this.checkHealth(), 2000);
+    },
+    destroy() {
+        if (this.pollingInterval) clearInterval(this.pollingInterval);
     }
 }" class="flex min-h-screen">
 
@@ -99,7 +115,7 @@
                 </div>
 
                 {{-- Right: Status + Dark Mode --}}
-                <div x-data="{ status: 'online' }" class="flex items-center gap-4">
+                <div class="flex items-center gap-4">
                     {{-- Watched Directory --}}
                     <div class="hidden sm:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,21 +127,8 @@
                         @endif
                     </div>
 
-                    {{-- Status Indicator (single health check poll) --}}
-                    <div
-                        x-init="
-                            const check = async () => {
-                                try {
-                                    const resp = await fetch('{{ route('filewatcher.health') }}');
-                                    const data = await resp.json();
-                                    status = data.status;
-                                } catch { status = 'offline'; }
-                            };
-                            check();
-                            setInterval(check, 15000);
-                        "
-                        class="flex items-center gap-1.5"
-                    >
+                    {{-- Status Indicator (reads from shared parent polling) --}}
+                    <div class="flex items-center gap-1.5">
                         <span
                             :class="status === 'online' ? 'bg-green-500' : 'bg-red-500'"
                             class="w-2 h-2 rounded-full animate-pulse"
@@ -185,23 +188,9 @@
         </main>
     </div>
 
-    {{-- Offline Banner --}}
+    {{-- Offline Banner (reads from shared parent status) --}}
     <div
-        x-data="{
-            show: false,
-            init() {
-                const check = async () => {
-                    try {
-                        const resp = await fetch('{{ route('filewatcher.health') }}');
-                        const data = await resp.json();
-                        this.show = data.status === 'offline';
-                    } catch { this.show = true; }
-                };
-                check();
-                setInterval(check, 15000);
-            }
-        }"
-        x-show="show"
+        x-show="status === 'offline'"
         x-transition
         class="fixed bottom-0 left-0 right-0 z-50 bg-red-600 text-white px-4 py-3 text-center text-sm font-medium shadow-lg"
     >

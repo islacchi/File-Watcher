@@ -29,12 +29,12 @@ class HealthController extends Controller
      */
     public function check(): JsonResponse
     {
-        $heartbeat = $this->configService->get('heartbeat');
+        $heartbeat = $this->configService->getFresh('heartbeat');
         $isOnline = false;
 
         if ($heartbeat !== null) {
-            // Primary: check heartbeat (script writes every 30s, threshold 90s)
-            $isOnline = Carbon::parse($heartbeat)->diffInSeconds(Carbon::now()) <= 90;
+            // Primary: check heartbeat (script writes every 5s, threshold 12s allows 1 missed cycle + buffer)
+            $isOnline = Carbon::parse($heartbeat)->diffInSeconds(Carbon::now()) <= 12;
         } else {
             // Fallback: check last event timestamp for older script versions
             $lastEvent = Event::orderByDesc('timestamp')->first();

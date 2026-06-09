@@ -33,6 +33,15 @@ class ConfigService
     }
 
     /**
+     * Get a config value directly from the database, bypassing the cache.
+     * Used for frequently-changing values like heartbeat that need real-time accuracy.
+     */
+    public function getFresh(string $key): ?string
+    {
+        return Config::where('key', $key)->value('value');
+    }
+
+    /**
      * Get the watched directory path.
      * Falls back to 'K:\' if the config table has no entry yet.
      */

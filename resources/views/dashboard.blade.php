@@ -117,7 +117,6 @@
                                     <x-event-badge
                                         :label="$event->badgeLabel"
                                         :color="$event->badgeColor"
-                                        :icon="$event->iconName"
                                     />
                                 </div>
                                 <p class="mt-0.5 font-mono text-xs text-gray-600 dark:text-gray-400 truncate" title="{{ $event->srcPath }}">

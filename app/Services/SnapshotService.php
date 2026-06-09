@@ -69,8 +69,7 @@ class SnapshotService
 
     /**
      * Build a nested directory tree from snapshot paths.
-     * Only builds top-level (2 levels deep) for performance.
-     * Deeper levels are loaded on demand via getSubDirectories().
+     * Builds to full depth of any directory hierarchy.
      *
      * @return array<int, array{path: string, name: string, children: array, file_count: int}>
      */
@@ -144,55 +143,6 @@ class SnapshotService
     }
 
     /**
-     * Get subdirectories for a given parent path (for lazy loading).
-     *
-     * @return array<int, array{path: string, name: string, children: array, file_count: int}>
-     */
-    public function getSubDirectories(string $parentPath): array
-    {
-        $parentPath = rtrim($parentPath, '\\/');
-        $parentDepth = substr_count($parentPath, '\\') + 1;
-
-        $paths = Snapshot::select('path')
-            ->where('path', 'LIKE', $parentPath . '\\%')
-            ->pluck('path')
-            ->toArray();
-
-        $tree = [];
-        foreach ($paths as $path) {
-            $cleanDir = preg_replace('/^[A-Z]:/i', '', $path);
-            $cleanDir = ltrim($cleanDir, '\\/');
-            $parts = array_values(array_filter(explode('\\', $cleanDir)));
-
-            // Get the next level after parent
-            $nextIndex = $parentDepth;
-            if ($nextIndex >= count($parts)) {
-                continue;
-            }
-
-            $part = $parts[$nextIndex];
-            $subPath = implode('\\', array_slice($parts, 0, $nextIndex + 1));
-
-            if (! isset($tree[$part])) {
-                $isLeaf = ($nextIndex === count($parts) - 1);
-                $tree[$part] = [
-                    'path' => $subPath,
-                    'name' => $part,
-                    'children' => [],
-                    'file_count' => 0,
-                ];
-                if ($isLeaf) {
-                    $tree[$part]['file_count']++;
-                }
-            } elseif ($nextIndex === count($parts) - 1) {
-                $tree[$part]['file_count']++;
-            }
-        }
-
-        return $this->buildTreeArray($tree);
-    }
-
-    /**
      * Get files in a specific directory.
      */
     public function getFilesInDirectory(string $directory): Collection
@@ -236,22 +186,6 @@ class SnapshotService
                 ->sort()
                 ->values();
         });
-    }
-
-    /**
-     * Recursively sort tree nodes by name.
-     *
-     * @param array<int, array{path: string, name: string, children: array, file_count: int}> &$nodes
-     */
-    private function sortTree(array &$nodes): void
-    {
-        usort($nodes, fn (array $a, array $b): int => strcmp($a['name'], $b['name']));
-
-        foreach ($nodes as &$node) {
-            if (! empty($node['children'])) {
-                $this->sortTree($node['children']);
-            }
-        }
     }
 
     /**

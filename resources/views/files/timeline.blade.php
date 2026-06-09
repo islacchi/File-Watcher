@@ -95,7 +95,6 @@
                                             <x-event-badge
                                                 :label="$event->badgeLabel"
                                                 :color="$event->badgeColor"
-                                                :icon="$event->iconName"
                                             />
                                             <span class="text-xs text-gray-400 dark:text-gray-500" title="{{ $event->formattedTime }}">
                                                 {{ $event->relativeTime }}

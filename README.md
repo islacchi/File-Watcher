@@ -16,7 +16,7 @@
     <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License">
 </p>
 
-<h1 align="center">📁 File Watcher Laravel UI</h1>
+<h1 align="center">File Watcher Laravel UI</h1>
 
 <p align="center">
     A read-only Laravel web interface for monitoring file system changes on a network drive. <br>
@@ -25,7 +25,7 @@
 
 ---
 
-## ✨ Features
+## Features
 
 - **Dashboard** — Real-time metrics, event type charts, and recent activity feed
 - **Events Log** — Filterable table with search, date range, event type, and extension filters
@@ -34,7 +34,7 @@
 - **Health Monitoring** — Live/offline status via heartbeat from the Python script
 - **Dark Mode** — Class-based toggle with localStorage persistence
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 app/
@@ -66,7 +66,7 @@ resources/views/
     └── _tree.blade.php    # AJAX partial for tree
 ```
 
-## 📄 Pages
+## Pages
 
 | Page | Route | Description |
 |------|-------|-------------|
@@ -75,7 +75,7 @@ resources/views/
 | **Snapshot** | `/filewatcher/snapshot` | Current file states + directory tree |
 | **File Timeline** | `/filewatcher/files?path=...` | Event history for a single file |
 
-## 🗄️ Database
+## Database
 
 The UI connects to an existing SQLite database created by the Python script. Tables are read-only:
 
@@ -111,7 +111,7 @@ The UI connects to an existing SQLite database created by the Python script. Tab
 | `value` | `TEXT` | Corresponding value |
 | `updated` | `TEXT` | ISO 8601 timestamp |
 
-## 🎨 Design System
+## Design System
 
 ### Event Type Badge Colors
 
@@ -123,14 +123,14 @@ The UI connects to an existing SQLite database created by the Python script. Tab
 | RENAMED | <span style="background:#a855f7;color:white;padding:2px 8px;border-radius:999px;font-size:12px">Renamed</span> | <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:999px;font-size:12px">Renamed (offline)</span> |
 | MOVED | <span style="background:#14b8a6;color:white;padding:2px 8px;border-radius:999px;font-size:12px">Moved</span> | <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:999px;font-size:12px">Moved (offline)</span> |
 
-## 🚀 Prerequisites
+##  Prerequisites
 
 - PHP 8.2+
 - Composer
 - Node.js 18+ and npm
 - SQLite (PHP extension enabled)
 
-## ⚙️ Setup
+##  Setup
 
 ```bash
 # 1. Clone the repository
@@ -165,7 +165,7 @@ php artisan serve
 
 Visit `http://localhost:8000` — the root URL redirects to `/filewatcher/dashboard`.
 
-## 🛠️ Development
+##  Development
 
 ```bash
 # Start Laravel dev server
@@ -178,7 +178,7 @@ npm run build
 npm run dev
 ```
 
-## 🔗 Script Integration
+##  Script Integration
 
 The Laravel UI works with a companion **Python file watcher** that:
 
@@ -189,7 +189,7 @@ The Laravel UI works with a companion **Python file watcher** that:
 
 The health check endpoint (`/filewatcher/health`) reads the heartbeat to determine if the script is running. If no heartbeat within 90 seconds, the UI displays as **offline**.
 
-## 📋 Reusable Components
+##  Reusable Components
 
 | Component | Usage | Props |
 |-----------|-------|-------|
@@ -202,6 +202,6 @@ The health check endpoint (`/filewatcher/health`) reads the heartbeat to determi
 | `<x-filter-tabs>` | Events quick-filter tabs | `tabs`, `active`, `base-url` |
 | `<x-empty-state>` | Empty table states | `title`, `description`, `icon` |
 
-## 📄 License
+##  License
 
 This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

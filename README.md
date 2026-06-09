@@ -1,59 +1,207 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
-
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+    <img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="300" alt="Laravel Logo">
 </p>
 
-## About Laravel
+<p align="center">
+    <img src="https://img.shields.io/badge/PHP-8.2+-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP">
+    <img src="https://img.shields.io/badge/Laravel-12-FF2D20?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel">
+    <img src="https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
+    <img src="https://img.shields.io/badge/Alpine.js-8BC0D0?style=for-the-badge&logo=alpine.js&logoColor=black" alt="Alpine.js">
+    <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
+    <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite">
+</p>
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+<p align="center">
+    <img src="https://img.shields.io/badge/Status-Active-22c55e?style=flat-square" alt="Status">
+    <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License">
+</p>
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+<h1 align="center">📁 File Watcher Laravel UI</h1>
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+<p align="center">
+    A read-only Laravel web interface for monitoring file system changes on a network drive. <br>
+    Pairs with a Python file watcher that logs events to a SQLite database.
+</p>
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## ✨ Features
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- **Dashboard** — Real-time metrics, event type charts, and recent activity feed
+- **Events Log** — Filterable table with search, date range, event type, and extension filters
+- **Snapshot** — Current file state with expandable directory tree (auto-refreshes every 15s)
+- **File Timeline** — Complete event history tracking files across renames and moves
+- **Health Monitoring** — Live/offline status via heartbeat from the Python script
+- **Dark Mode** — Class-based toggle with localStorage persistence
 
-## Laravel Sponsors
+## 🏗️ Architecture
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```
+app/
+├── Enums/          # EventType enum with badge colors and labels
+├── Http/
+│   ├── Controllers/# Dashboard, Event, File, Snapshot, Health
+│   └── Requests/  # EventFilter, SnapshotFilter, FileTimeline
+├── Models/         # Event, Snapshot, Config (read-only)
+├── Services/       # EventService, SnapshotService, ConfigService, Formatter
+├── Providers/      # ViewServiceProvider (shared layout data)
+└── View/Models/    # DashboardViewModel, EventViewModel, SnapshotViewModel
 
-### Premium Partners
+resources/views/
+├── components/     # Blade components (badges, cards, tree, pagination)
+│   ├── directory-tree.blade.php
+│   ├── event-badge.blade.php
+│   ├── file-path.blade.php
+│   ├── hash-display.blade.php
+│   ├── metric-card.blade.php
+│   ├── timeline-dot.blade.php
+│   ├── filter-tabs.blade.php
+│   ├── empty-state.blade.php
+│   └── layouts/app.blade.php
+├── dashboard.blade.php
+├── events/index.blade.php
+├── files/timeline.blade.php
+└── snapshot/
+    ├── index.blade.php
+    └── _tree.blade.php    # AJAX partial for tree
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## 📄 Pages
 
-## Contributing
+| Page | Route | Description |
+|------|-------|-------------|
+| **Dashboard** | `/filewatcher/dashboard` | Metrics, bar chart, recent activity |
+| **Events Log** | `/filewatcher/events` | Filterable event table with pagination |
+| **Snapshot** | `/filewatcher/snapshot` | Current file states + directory tree |
+| **File Timeline** | `/filewatcher/files?path=...` | Event history for a single file |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 🗄️ Database
 
-## Code of Conduct
+The UI connects to an existing SQLite database created by the Python script. Tables are read-only:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### `events` — Permanent log of every file change
 
-## Security Vulnerabilities
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | `INTEGER PK` | Auto-increment |
+| `timestamp` | `TEXT` | ISO 8601 datetime |
+| `event_type` | `TEXT` | CREATED / MODIFIED / DELETED / RENAMED / MOVED (+ offline variants) |
+| `src_path` | `TEXT` | Source file path (UNC or local) |
+| `dest_path` | `TEXT` | Destination path for RENAMED/MOVED |
+| `file_size` | `INTEGER` | Size in bytes |
+| `md5_hash` | `TEXT` | Hash after the event |
+| `prev_hash` | `TEXT` | Hash before the event (MODIFIED only) |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### `snapshots` — Last known state of every watched file
 
-## License
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | `INTEGER PK` | Auto-increment |
+| `path` | `TEXT UNIQUE` | Current file path |
+| `size` | `INTEGER` | File size |
+| `mtime` | `REAL` | Unix timestamp |
+| `md5_hash` | `TEXT` | Current hash |
+| `last_seen` | `TEXT` | ISO 8601 timestamp |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### `config` — Script metadata (written by Python)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `key` | `TEXT PK` | `watch_directory`, `started_at`, `heartbeat`, `script_version` |
+| `value` | `TEXT` | Corresponding value |
+| `updated` | `TEXT` | ISO 8601 timestamp |
+
+## 🎨 Design System
+
+### Event Type Badge Colors
+
+| Type | Badge | Offline Variant |
+|------|-------|-----------------|
+| CREATED | <span style="background:#22c55e;color:white;padding:2px 8px;border-radius:999px;font-size:12px">Created</span> | <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:999px;font-size:12px">Created (offline)</span> |
+| MODIFIED | <span style="background:#3b82f6;color:white;padding:2px 8px;border-radius:999px;font-size:12px">Modified</span> | <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:999px;font-size:12px">Modified (offline)</span> |
+| DELETED | <span style="background:#ef4444;color:white;padding:2px 8px;border-radius:999px;font-size:12px">Deleted</span> | <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:999px;font-size:12px">Deleted (offline)</span> |
+| RENAMED | <span style="background:#a855f7;color:white;padding:2px 8px;border-radius:999px;font-size:12px">Renamed</span> | <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:999px;font-size:12px">Renamed (offline)</span> |
+| MOVED | <span style="background:#14b8a6;color:white;padding:2px 8px;border-radius:999px;font-size:12px">Moved</span> | <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:999px;font-size:12px">Moved (offline)</span> |
+
+## 🚀 Prerequisites
+
+- PHP 8.2+
+- Composer
+- Node.js 18+ and npm
+- SQLite (PHP extension enabled)
+
+## ⚙️ Setup
+
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd filewatcher
+
+# 2. Install PHP dependencies
+composer install
+
+# 3. Configure environment
+cp .env.example .env
+```
+
+Edit `.env` to point to your database:
+
+```env
+DB_CONNECTION=sqlite
+DB_DATABASE=C:/path/to/logs/filelog.db
+```
+
+```bash
+# 4. Generate application key
+php artisan key:generate
+
+# 5. Install and build frontend assets
+npm install
+npm run build
+
+# 6. Start the development server
+php artisan serve
+```
+
+Visit `http://localhost:8000` — the root URL redirects to `/filewatcher/dashboard`.
+
+## 🛠️ Development
+
+```bash
+# Start Laravel dev server
+php artisan serve
+
+# Build frontend for production
+npm run build
+
+# Watch for frontend changes
+npm run dev
+```
+
+## 🔗 Script Integration
+
+The Laravel UI works with a companion **Python file watcher** that:
+
+1. Monitors a network drive for file changes using `watchdog`
+2. Logs CREATED, MODIFIED, DELETED, RENAMED, MOVED events to the SQLite database
+3. Maintains a current snapshot table with MD5 hashes
+4. Writes a `heartbeat` to the config table every 30 seconds
+
+The health check endpoint (`/filewatcher/health`) reads the heartbeat to determine if the script is running. If no heartbeat within 90 seconds, the UI displays as **offline**.
+
+## 📋 Reusable Components
+
+| Component | Usage | Props |
+|-----------|-------|-------|
+| `<x-event-badge>` | Events table, dashboard, timeline | `label`, `color` |
+| `<x-metric-card>` | Dashboard cards | `title`, `value`, `trend`, `icon`, `sparkline` |
+| `<x-file-path>` | All file path displays | `path`, `truncated` |
+| `<x-hash-display>` | Hash columns | `hash`, `truncated`, `searchable` |
+| `<x-timeline-dot>` | File timeline | `color` |
+| `<x-directory-tree>` | Snapshot sidebar | `nodes`, `current-directory`, `level` |
+| `<x-filter-tabs>` | Events quick-filter tabs | `tabs`, `active`, `base-url` |
+| `<x-empty-state>` | Empty table states | `title`, `description`, `icon` |
+
+## 📄 License
+
+This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

@@ -1,7 +1,11 @@
 <x-layouts.app :title="'Snapshot'">
     <div class="flex gap-6">
         {{-- Directory Tree (Left Panel - 20%) --}}
-        <aside class="hidden lg:block w-64 flex-shrink-0">
+        <aside
+            class="hidden lg:block flex-shrink-0 relative"
+            x-data="{ width: 480, dragging: false }"
+            :style="`width: ${width}px`"
+        >
             <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sticky top-20">
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Directories</h3>
 
@@ -57,6 +61,19 @@
                     <div x-html="treeHtml" id="snapshot-tree-container"></div>
                 </div>
             </div>
+                    {{-- Resize Handle --}}
+            <div
+                class="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-indigo-400 dark:hover:bg-indigo-600 transition-colors z-10"
+                @mousedown.prevent="
+                    dragging = true;
+                    const startX = $event.clientX;
+                    const startWidth = width;
+                    const onMove = (e) => { if (dragging) width = Math.max(256, Math.min(720, startWidth + (e.clientX - startX))); };
+                    const onUp = () => { dragging = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                "
+            ></div>
         </aside>
 
         {{-- Right Panel: File Table (80%) --}}

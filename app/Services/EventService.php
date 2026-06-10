@@ -96,14 +96,11 @@ class EventService
                 ->pluck('total', 'event_type')
                 ->toArray();
 
-            // Ensure all event types are represented
             $result = [];
             foreach (EventType::cases() as $type) {
-                $result[$type->value] = $counts[$type->value] ?? 0;
-                $offlineKey = $type->offline();
-                if (isset($counts[$offlineKey])) {
-                    $result[$type->value . '_offline'] = $counts[$offlineKey];
-                }
+                $live    = $counts[$type->value] ?? 0;
+                $offline = $counts[$type->offline()] ?? 0;
+                $result[$type->value] = $live + $offline;
             }
 
             return $result;

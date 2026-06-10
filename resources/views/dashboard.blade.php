@@ -40,6 +40,7 @@
             @php
                 $maxCount = $viewModel->maxEventCount();
                 $chartData = collect(\App\Enums\EventType::cases())->map(fn($type) => [
+                    'value' => $type->value,
                     'label' => $type->label(),
                     'count' => $viewModel->eventTypeCounts[$type->value] ?? 0,
                     'color' => match($type) {
@@ -59,9 +60,13 @@
                         @php
                             $percentage = $maxCount > 0 ? ($item['count'] / $maxCount) * 100 : 0;
                         @endphp
-                        <div class="group" title="{{ $item['label'] }}: {{ $item['count'] }}">
+                        <a
+                            href="{{ route('filewatcher.events', ['event_type[]' => $item['value'], 'date_from' => date('Y-m-d'), 'date_to' => date('Y-m-d')]) }}"
+                            class="block group"
+                            title="View {{ $item['label'] }} events ({{ $item['count'] }})"
+                        >
                             <div class="flex items-center justify-between mb-1">
-                                <span class="text-xs font-medium text-gray-600 dark:text-gray-400">{{ $item['label'] }}</span>
+                                <span class="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors">{{ $item['label'] }}</span>
                                 <span class="text-xs font-bold text-gray-900 dark:text-white">{{ $item['count'] }}</span>
                             </div>
                             <div class="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -70,7 +75,7 @@
                                     style="width: {{ max($percentage, $item['count'] > 0 ? 3 : 0) }}%"
                                 ></div>
                             </div>
-                        </div>
+                        </a>
                     @endforeach
                 </div>
             @else

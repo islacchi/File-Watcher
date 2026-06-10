@@ -95,9 +95,9 @@
         <nav class="flex-1 py-4 space-y-1 px-2">
             @php
                 $navItems = [
-                    ['route' => 'filewatcher.dashboard', 'label' => 'Dashboard', 'icon' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'],
+                    ['route' => 'filewatcher.dashboard', 'label' => 'Dashboard', 'icon' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', 'count' => $eventsCountToday],
                     ['route' => 'filewatcher.events', 'label' => 'Events Log', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
-                    ['route' => 'filewatcher.snapshot', 'label' => 'Snapshot', 'icon' => 'M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M4 7c0-2 1-3 3-3h10c2 0 3 1 3 3M4 7h16M9 11h.01M15 11h.01M9 15h.01M15 15h.01'],
+                    ['route' => 'filewatcher.snapshot', 'label' => 'Snapshot', 'icon' => 'M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M4 7c0-2 1-3 3-3h10c2 0 3 1 3 3M4 7h16M9 11h.01M15 11h.01M9 15h.01M15 15h.01', 'count' => $staleCount],
                 ];
             @endphp
 
@@ -112,12 +112,22 @@
                             ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-l-2 border-indigo-600'
                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
                         }}"
-                    title="{{ $item['label'] }}"
+                    title="{{ $item['label'] }}{{ isset($item['count']) && $item['count'] > 0 ? ' (' . $item['count'] . ')' : '' }}"
                 >
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $item['icon'] }}"/>
                     </svg>
-                    <span x-show="sidebarOpen" x-transition class="whitespace-nowrap">{{ $item['label'] }}</span>
+                    <span x-show="sidebarOpen" x-transition class="whitespace-nowrap flex items-center gap-2">
+                        {{ $item['label'] }}
+                        @if (isset($item['count']) && $item['count'] > 0)
+                            <span class="inline-flex items-center justify-center min-w-[1.25rem] h-4 px-1 text-[10px] font-bold rounded-full
+                                {{ $item['route'] === 'filewatcher.dashboard' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : '' }}
+                                {{ $item['route'] === 'filewatcher.snapshot' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300' : '' }}
+                            ">
+                                {{ $item['count'] > 99 ? '99+' : $item['count'] }}
+                            </span>
+                        @endif
+                    </span>
                 </a>
             @endforeach
         </nav>

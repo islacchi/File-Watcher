@@ -16,6 +16,17 @@ class SnapshotService
         private readonly ConfigService $configService,
     ) {}
     /**
+     * Get the count of stale files (not seen in over 7 days).
+     */
+    public function getStaleCount(): int
+    {
+        return (int) Cache::remember('snapshots_stale_count', 30, function (): int {
+            $cutoff = Carbon::now()->subDays(7)->toIso8601String();
+            return Snapshot::where('last_seen', '<', $cutoff)->count();
+        });
+    }
+
+    /**
      * Get the total number of tracked files.
      */
     public function getTotalTracked(): int

@@ -17,6 +17,8 @@
     sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
     status: 'online',
     pollingInterval: null,
+    lastEventId: 0,
+    changePollingInterval: null,
     toggleSidebar() {
         this.sidebarOpen = !this.sidebarOpen;
         localStorage.setItem('sidebarOpen', this.sidebarOpen);
@@ -32,12 +34,44 @@
             this.status = data.status;
         } catch { this.status = 'offline'; }
     },
+    async checkForChanges() {
+        try {
+            const resp = await fetch('{{ route('filewatcher.latest-event') }}');
+            const data = await resp.json();
+            if (data.id > 0 && data.id !== this.lastEventId) {
+                this.lastEventId = data.id;
+                location.reload();
+            }
+        } catch {}
+    },
+    startChangePolling() {
+        // Fetch the current latest event ID first so we don't reload immediately
+        fetch('{{ route('filewatcher.latest-event') }}')
+            .then(r => r.json())
+            .then(data => { this.lastEventId = data.id; })
+            .catch(() => {});
+        this.changePollingInterval = setInterval(() => this.checkForChanges(), 3000);
+    },
+    stopChangePolling() {
+        if (this.changePollingInterval) {
+            clearInterval(this.changePollingInterval);
+            this.changePollingInterval = null;
+        }
+    },
     init() {
         this.checkHealth();
         this.pollingInterval = setInterval(() => this.checkHealth(), 2000);
+        // Restore auto-refresh state from localStorage
+        if (localStorage.getItem('autoRefresh') === 'true') {
+            this.startChangePolling();
+        }
+        // Listen for toggle events from the auto-refresh button
+        this.$el.addEventListener('start-polling', () => this.startChangePolling());
+        this.$el.addEventListener('stop-polling', () => this.stopChangePolling());
     },
     destroy() {
         if (this.pollingInterval) clearInterval(this.pollingInterval);
+        this.stopChangePolling();
     }
 }" class="flex min-h-screen">
 
@@ -138,16 +172,16 @@
                         ></span>
                     </div>
 
-                    {{-- Auto-refresh Toggle --}}
+                    {{-- Auto-refresh Toggle (change-driven, polls for new events) --}}
                     <div x-data="{ autoRefresh: localStorage.getItem('autoRefresh') === 'true' }" class="flex items-center gap-2">
                         <button
                             @click="
                                 autoRefresh = !autoRefresh;
                                 localStorage.setItem('autoRefresh', autoRefresh);
                                 if (autoRefresh) {
-                                    window._autoRefreshInterval = setInterval(() => location.reload(), 10000);
+                                    $dispatch('start-polling');
                                 } else {
-                                    clearInterval(window._autoRefreshInterval);
+                                    $dispatch('stop-polling');
                                 }
                             "
                             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
@@ -155,7 +189,7 @@
                             role="switch"
                             :aria-checked="autoRefresh"
                             aria-label="Auto-refresh"
-                            title="Auto-refresh every 10 seconds"
+                            title="Auto-refresh when new changes are detected"
                         >
                             <span
                                 class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform"

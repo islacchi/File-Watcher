@@ -8,7 +8,10 @@ use App\Http\Requests\EventFilterRequest;
 use App\Models\Event;
 use App\Services\EventService;
 use App\View\Models\EventViewModel;
+use App\Enums\EventType;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class EventController extends Controller
 {
@@ -31,6 +34,28 @@ class EventController extends Controller
             'id' => $latest->id,
             'timestamp' => $latest->timestamp,
         ]);
+    }
+
+    /**
+     * Return today's event counts by type for real-time dashboard updates.
+     */
+    public function todayCounts(): JsonResponse
+    {
+        $today = Carbon::now()->startOfDay()->toIso8601String();
+
+        $counts = Event::where('timestamp', '>=', $today)
+            ->select('event_type', DB::raw('count(*) as total'))
+            ->groupBy('event_type')
+            ->pluck('total', 'event_type')
+            ->toArray();
+
+        // Ensure all event types are represented with at least 0
+        $result = [];
+        foreach (EventType::cases() as $type) {
+            $result[$type->value] = ($counts[$type->value] ?? 0) + ($counts[$type->offline()] ?? 0);
+        }
+
+        return response()->json($result);
     }
 
     /**

@@ -19,6 +19,7 @@ Route::prefix('filewatcher')->name('filewatcher.')->group(function (): void {
     Route::get('/files', [FileController::class, 'timeline'])->name('files.timeline');
     Route::get('/snapshot/tree', [SnapshotController::class, 'tree'])->name('snapshot.tree');
     Route::get('/snapshot', [SnapshotController::class, 'index'])->name('snapshot');
+    Route::get('/event-counts', [EventController::class, 'todayCounts'])->name('event-counts');
     Route::get('/latest-event', [EventController::class, 'latestEvent'])->name('latest-event');
     Route::get('/health', [HealthController::class, 'check'])->name('health');
 });

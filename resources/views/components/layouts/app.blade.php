@@ -15,6 +15,7 @@
 
 <div x-data="{
     sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
+    autoRefresh: localStorage.getItem('autoRefresh') === 'true',
     status: 'online',
     pollingInterval: null,
     lastEventId: 0,
@@ -26,6 +27,15 @@
     toggleDark() {
         this.dark = !this.dark;
         localStorage.setItem('dark', this.dark);
+    },
+    toggleAutoRefresh() {
+        this.autoRefresh = !this.autoRefresh;
+        localStorage.setItem('autoRefresh', this.autoRefresh);
+        if (this.autoRefresh) {
+            this.startChangePolling();
+        } else {
+            this.stopChangePolling();
+        }
     },
     async checkHealth() {
         try {
@@ -45,7 +55,6 @@
         } catch {}
     },
     startChangePolling() {
-        // Fetch the current latest event ID first so we don't reload immediately
         fetch('{{ route('filewatcher.latest-event') }}')
             .then(r => r.json())
             .then(data => { this.lastEventId = data.id; })
@@ -61,13 +70,9 @@
     init() {
         this.checkHealth();
         this.pollingInterval = setInterval(() => this.checkHealth(), 2000);
-        // Restore auto-refresh state from localStorage
-        if (localStorage.getItem('autoRefresh') === 'true') {
+        if (this.autoRefresh) {
             this.startChangePolling();
         }
-        // Listen for toggle events from the auto-refresh button
-        this.$el.addEventListener('start-polling', () => this.startChangePolling());
-        this.$el.addEventListener('stop-polling', () => this.stopChangePolling());
     },
     destroy() {
         if (this.pollingInterval) clearInterval(this.pollingInterval);
@@ -183,17 +188,9 @@
                     </div>
 
                     {{-- Auto-refresh Toggle (change-driven, polls for new events) --}}
-                    <div x-data="{ autoRefresh: localStorage.getItem('autoRefresh') === 'true' }" class="flex items-center gap-2">
+                    <div class="flex items-center gap-2">
                         <button
-                            @click="
-                                autoRefresh = !autoRefresh;
-                                localStorage.setItem('autoRefresh', autoRefresh);
-                                if (autoRefresh) {
-                                    $dispatch('start-polling');
-                                } else {
-                                    $dispatch('stop-polling');
-                                }
-                            "
+                            @click="toggleAutoRefresh()"
                             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
                             :class="autoRefresh ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'"
                             role="switch"

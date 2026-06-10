@@ -33,59 +33,70 @@
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {{-- Event Type Chart --}}
-        <div class="xl:col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Events Today by Type</h3>
+        {{-- Event Type Chart (real-time with Alpine polling) --}}
+        <div
+            class="xl:col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5"
+            x-data="{
+            counts: @js($viewModel->eventTypeCounts),
+            maxCount: @js($viewModel->maxEventCount()),
+            labels: @js(collect(\App\Enums\EventType::cases())->mapWithKeys(fn($t) => [$t->value => $t->label()])),
+            colors: @js(collect(\App\Enums\EventType::cases())->mapWithKeys(fn($t) => [
+                $t->value => match($t) {
+                    \App\Enums\EventType::CREATED => 'bg-green-500',
+                    \App\Enums\EventType::MODIFIED => 'bg-blue-500',
+                    \App\Enums\EventType::DELETED => 'bg-red-500',
+                    \App\Enums\EventType::RENAMED => 'bg-purple-500',
+                    \App\Enums\EventType::MOVED => 'bg-teal-500',
+                    \App\Enums\EventType::MOVED_AND_RENAMED => 'bg-indigo-500',
+                },
+            ])),
+            types: @js(collect(\App\Enums\EventType::cases())->pluck('value')->values()),
+            async refreshCounts() {
+                try {
+                    const resp = await fetch('{{ route('filewatcher.event-counts') }}');
+                    const data = await resp.json();
+                    this.counts = data;
+                    this.maxCount = Math.max(...Object.values(data), 0);
+                } catch {}
+            },
+            init() {
+                setInterval(() => this.refreshCounts(), 5000);
+            }
+        }"
+    >
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Events Today by Type</h3>
 
-            @php
-                $maxCount = $viewModel->maxEventCount();
-                $chartData = collect(\App\Enums\EventType::cases())->map(fn($type) => [
-                    'value' => $type->value,
-                    'label' => $type->label(),
-                    'count' => $viewModel->eventTypeCounts[$type->value] ?? 0,
-                    'color' => match($type) {
-                        \App\Enums\EventType::CREATED => 'bg-green-500',
-                        \App\Enums\EventType::MODIFIED => 'bg-blue-500',
-                        \App\Enums\EventType::DELETED => 'bg-red-500',
-                        \App\Enums\EventType::RENAMED => 'bg-purple-500',
-                        \App\Enums\EventType::MOVED => 'bg-teal-500',
-                        \App\Enums\EventType::MOVED_AND_RENAMED => 'bg-indigo-500',
-                    },
-                ]);
-            @endphp
-
-            @if ($maxCount > 0)
-                <div class="space-y-3">
-                    @foreach ($chartData as $item)
-                        @php
-                            $percentage = $maxCount > 0 ? ($item['count'] / $maxCount) * 100 : 0;
-                        @endphp
-                        <a
-                            href="{{ route('filewatcher.events', ['event_type[]' => $item['value'], 'date_from' => date('Y-m-d'), 'date_to' => date('Y-m-d')]) }}"
-                            class="block group"
-                            title="View {{ $item['label'] }} events ({{ $item['count'] }})"
-                        >
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors">{{ $item['label'] }}</span>
-                                <span class="text-xs font-bold text-gray-900 dark:text-white">{{ $item['count'] }}</span>
-                            </div>
-                            <div class="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                                <div
-                                    class="h-full {{ $item['color'] }} rounded-full transition-all duration-500 group-hover:opacity-80"
-                                    style="width: {{ max($percentage, $item['count'] > 0 ? 3 : 0) }}%"
-                                ></div>
-                            </div>
-                        </a>
-                    @endforeach
-                </div>
-            @else
-                <x-empty-state
-                    title="No events today"
-                    description="Events will appear here once the file watcher starts recording."
-                    icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                />
-            @endif
-        </div>
+        <template x-if="maxCount > 0">
+            <div class="space-y-3">
+                <template x-for="type in types" :key="type">
+                    <a
+                        :href="'{{ route('filewatcher.events', ['date_from' => date('Y-m-d'), 'date_to' => date('Y-m-d')]) }}&event_type[]=' + type"
+                        class="block group"
+                        :title="'View ' + labels[type] + ' events (' + (counts[type] || 0) + ')'"
+                    >
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors" x-text="labels[type]"></span>
+                            <span class="text-xs font-bold text-gray-900 dark:text-white" x-text="counts[type] || 0"></span>
+                        </div>
+                        <div class="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                                class="h-full rounded-full transition-all duration-500 group-hover:opacity-80"
+                                :class="colors[type]"
+                                :style="'width: ' + Math.max((counts[type] || 0) / maxCount * 100, (counts[type] || 0) > 0 ? 3 : 0) + '%'"
+                            ></div>
+                        </div>
+                    </a>
+                </template>
+            </div>
+        </template>
+        <template x-if="!maxCount || maxCount === 0">
+            <x-empty-state
+                title="No events today"
+                description="Events will appear here once the file watcher starts recording."
+                icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            />
+        </template>
+    </div>
 
         {{-- Recent Activity --}}
         <div class="xl:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">

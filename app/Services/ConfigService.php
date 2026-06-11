@@ -84,6 +84,16 @@ class ConfigService
     }
 
     /**
+     * Get the watcher status from the config table.
+     * The Python script upserts this as "live" on startup and "offline" on shutdown.
+     * Uses getFresh() to bypass cache for real-time accuracy.
+     */
+    public function getStatus(): ?string
+    {
+        return $this->getFresh('status');
+    }
+
+    /**
      * Clear the config cache. Call this if you need fresh data.
      */
     public function clearCache(): void

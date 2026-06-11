@@ -18,35 +18,39 @@ class HealthController extends Controller
     /**
      * Health check endpoint that returns online/offline status.
      *
-     * Primary check: reads the heartbeat timestamp from the config table.
-     * The Python script upserts this every 30 seconds while running.
-     * We consider the script online if the heartbeat is within 90 seconds.
+     * Primary check: reads the "status" key from the config table.
+     * The Python script writes "live" on startup and "offline" on shutdown.
      *
-     * Fallback: checks the last event timestamp (within 60 seconds)
-     * for backwards compatibility before the heartbeat was introduced.
+     * Fallback 1: checks the heartbeat timestamp (within 12 seconds).
+     * Fallback 2: checks the last event timestamp (within 60 seconds).
      *
      * Includes config metadata from the Python script for the frontend.
      */
     public function check(): JsonResponse
     {
-        $heartbeat = $this->configService->getFresh('heartbeat');
-        $isOnline = false;
+        // Primary: check explicit status from the Python script
+        $explicitStatus = $this->configService->getStatus();
 
-        if ($heartbeat !== null) {
-            // Primary: check heartbeat (script writes every 5s, threshold 12s allows 1 missed cycle + buffer)
-            $isOnline = Carbon::parse($heartbeat)->diffInSeconds(Carbon::now()) <= 12;
+        if ($explicitStatus !== null) {
+            $isOnline = $explicitStatus === 'live';
         } else {
-            // Fallback: check last event timestamp for older script versions
-            $lastEvent = Event::orderByDesc('timestamp')->first();
+            // Fallback 1: check heartbeat (script writes every 5s, threshold 12s allows 1 missed cycle + buffer)
+            $heartbeat = $this->configService->getFresh('heartbeat');
 
-            if ($lastEvent !== null) {
-                $isOnline = Carbon::parse($lastEvent->timestamp)->diffInSeconds(Carbon::now()) <= 60;
+            if ($heartbeat !== null) {
+                $isOnline = Carbon::parse($heartbeat)->diffInSeconds(Carbon::now()) <= 12;
+            } else {
+                // Fallback 2: check last event timestamp for older script versions
+                $lastEvent = Event::orderByDesc('timestamp')->first();
+
+                $isOnline = $lastEvent !== null
+                    && Carbon::parse($lastEvent->timestamp)->diffInSeconds(Carbon::now()) <= 60;
             }
         }
 
         return response()->json([
             'status' => $isOnline ? 'online' : 'offline',
-            'heartbeat' => $heartbeat,
+            'heartbeat' => $this->configService->getFresh('heartbeat'),
             'watch_directory' => $this->configService->getWatchDirectory(),
             'script_version' => $this->configService->getScriptVersion(),
             'started_at' => $this->configService->getStartedAt(),

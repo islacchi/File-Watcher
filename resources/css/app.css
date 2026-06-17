@@ -1,5 +1,109 @@
 @import "tailwindcss";
 @custom-variant dark (&:is(.dark *));
 
-@source inline("ml-60 ml-16 w-60 w-16 translate-x-4.5 translate-x-0.5 dark:bg-gray-800 dark:border-gray-700");
 @source inline("ml-60 ml-16 w-60 w-16 translate-x-4.5 translate-x-0.5 dark:bg-gray-800 dark:bg-gray-700 dark:border-gray-700");
+
+@layer components {
+
+    /* ── Sidebar ──────────────────────────────────────────── */
+    .sidebar-open { width: 15rem; }
+    .sidebar-closed { width: 4rem; }
+    .content-sidebar-open { margin-left: 15rem; }
+    .content-sidebar-closed { margin-left: 4rem; }
+
+    /* ── Status indicator ─────────────────────────────────── */
+    .status-online { background-color: rgb(34 197 94); }
+    .status-offline { background-color: rgb(239 68 68); }
+    .status-online-text { color: rgb(21 128 61); }
+    .status-offline-text { color: rgb(185 28 28); }
+
+    /* ── Auto-refresh toggle ──────────────────────────────── */
+    .toggle-on { background-color: rgb(79 70 229); }
+    .toggle-off { background-color: rgb(209 213 219); }
+    .toggle-thumb-on { transform: translateX(1.125rem); }
+    .toggle-thumb-off { transform: translateX(0.125rem); }
+
+    /* ── Analytics range picker ───────────────────────────── */
+    .range-btn {
+        padding: 0.375rem 0.875rem;
+        font-size: 0.75rem;
+        border-radius: 0.5rem;
+        transition: all 150ms;
+        cursor: pointer;
+        color: rgb(107 114 128);
+        font-weight: 500;
+    }
+    .range-btn:hover { color: rgb(17 24 39); }
+    .range-btn.is-active {
+        background-color: #fff;
+        color: rgb(67 56 202);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+        font-weight: 600;
+    }
+
+    /* ── Analytics card accents ───────────────────────────── */
+    .card-icon-indigo {
+        background-color: rgb(238 242 255);
+        box-shadow: 0 0 0 1px rgb(199 210 254);
+    }
+    .card-icon-indigo svg { color: rgb(79 70 229); }
+
+    .card-icon-blue {
+        background-color: rgb(239 246 255);
+        box-shadow: 0 0 0 1px rgb(191 219 254);
+    }
+    .card-icon-blue svg { color: rgb(37 99 235); }
+
+    .card-icon-amber {
+        background-color: rgb(255 251 235);
+        box-shadow: 0 0 0 1px rgb(253 230 138);
+    }
+    .card-icon-amber svg { color: rgb(217 119 6); }
+
+    .card-icon-emerald {
+        background-color: rgb(236 253 245);
+        box-shadow: 0 0 0 1px rgb(167 243 208);
+    }
+    .card-icon-emerald svg { color: rgb(5 150 105); }
+
+    /* dark mode overrides */
+    :is(.dark *) .card-icon-indigo {
+        background-color: rgb(79 70 229 / 0.2);
+        box-shadow: 0 0 0 1px rgb(67 56 202 / 0.5);
+    }
+    :is(.dark *) .card-icon-indigo svg { color: rgb(165 180 252); }
+
+    :is(.dark *) .card-icon-blue {
+        background-color: rgb(37 99 235 / 0.2);
+        box-shadow: 0 0 0 1px rgb(29 78 216 / 0.5);
+    }
+    :is(.dark *) .card-icon-blue svg { color: rgb(147 197 253); }
+
+    :is(.dark *) .card-icon-amber {
+        background-color: rgb(217 119 6 / 0.2);
+        box-shadow: 0 0 0 1px rgb(180 83 9 / 0.5);
+    }
+    :is(.dark *) .card-icon-amber svg { color: rgb(252 211 77); }
+
+    :is(.dark *) .card-icon-emerald {
+        background-color: rgb(5 150 105 / 0.2);
+        box-shadow: 0 0 0 1px rgb(4 120 87 / 0.5);
+    }
+    :is(.dark *) .card-icon-emerald svg { color: rgb(110 231 183); }
+
+    /* ── Tooltip positioning ──────────────────────────────── */
+    .tooltip-left { left: 0; }
+    .tooltip-right { right: 0; }
+    .tooltip-center { left: 50%; transform: translateX(-50%); }
+
+    /* ── Dashboard event bar colors ───────────────────────── */
+    .bar-created { background-color: rgb(34 197 94); }
+    .bar-modified { background-color: rgb(59 130 246); }
+    .bar-deleted { background-color: rgb(239 68 68); }
+    .bar-renamed { background-color: rgb(168 85 247); }
+    .bar-moved { background-color: rgb(20 184 166); }
+    .bar-moved-renamed { background-color: rgb(99 102 241); }
+
+    /* ── Directory tree ───────────────────────────────────── */
+    .tree-chevron-open { transform: rotate(90deg); }
+}

@@ -385,56 +385,29 @@ class EventService
             ->whereNotNull('src_path')
             ->groupBy('src_path')
             ->orderByDesc('count')
-            ->limit($limit * 5) // Get more raw paths, then deduplicate after truncation
+            ->limit($limit * 5)
             ->get();
 
-        // Extract last 2 path segments
         $folderCounts = [];
         foreach ($rows as $row) {
-            $segments = preg_split('/[\\\\\/]/', $row->src_path);
-            $segments = array_filter($segments, fn ($s) => $s !== '');
+            // Strip filename first, then take last 2 directory segments
+            $dir = dirname($row->src_path);
+            $segments = preg_split('/[\\\\\/]/', $dir);
+            $segments = array_values(array_filter($segments, fn ($s) => $s !== ''));
             $lastTwo = array_slice($segments, -2);
+            if (empty($lastTwo)) continue;
             $folder = implode('\\', $lastTwo);
             $folderCounts[$folder] = ($folderCounts[$folder] ?? 0) + (int) $row->count;
         }
 
-        // Sort by count descending and limit
         arsort($folderCounts);
         $folderCounts = array_slice($folderCounts, 0, $limit, true);
 
-        // Find common prefix to strip
-        $folders = array_keys($folderCounts);
-        $commonPrefix = '';
-        if (count($folders) > 1) {
-            $parts = array_map(fn ($f) => explode('\\', $f), $folders);
-            $minLen = min(array_map('count', $parts));
-            for ($i = 0; $i < $minLen; $i++) {
-                $segment = $parts[0][$i];
-                if (str_contains($segment, '...')) {
-                    break;
-                }
-                $allMatch = true;
-                foreach ($parts as $p) {
-                    if ($p[$i] !== $segment) {
-                        $allMatch = false;
-                        break;
-                    }
-                }
-                if ($allMatch) {
-                    $commonPrefix .= ($commonPrefix ? '\\' : '') . $segment;
-                } else {
-                    break;
-                }
-            }
-        }
-
-        // Strip common prefix from display names
         $total = array_sum($folderCounts);
         $result = [];
         foreach ($folderCounts as $name => $count) {
-            $displayName = $commonPrefix ? preg_replace('/^' . preg_quote($commonPrefix, '/') . '\\\\?/', '', $name) : $name;
             $result[] = [
-                'name' => $displayName ?: $name,
+                'name' => $name,
                 'count' => $count,
                 'pct' => $total > 0 ? round($count / $total * 100, 1) : 0,
             ];
@@ -450,26 +423,36 @@ class EventService
      */
     public function getAnalyticsTopExtensions(string $from, string $to, int $limit = 8): array
     {
-        $rows = Event::select(
-                DB::raw("LOWER(SUBSTR(src_path, INSTR(src_path, '.')+1)) as ext"),
-                DB::raw('COUNT(*) as count')
-            )
+        $rows = Event::select('src_path', DB::raw('COUNT(*) as count'))
             ->where('timestamp', '>=', $from)
             ->where('timestamp', '<=', $to)
             ->whereNotNull('src_path')
             ->where('src_path', 'LIKE', '%.%')
-            ->groupBy('ext')
-            ->orderByDesc('count')
-            ->limit($limit)
+            ->groupBy('src_path')
             ->get();
 
-        $total = $rows->sum('count');
+        // Extract true extension in PHP using pathinfo (last segment after last dot)
+        $extCounts = [];
+        foreach ($rows as $row) {
+            $ext = strtolower(pathinfo($row->src_path, PATHINFO_EXTENSION));
+            if ($ext === '') continue;
+            $extCounts[$ext] = ($extCounts[$ext] ?? 0) + (int) $row->count;
+        }
 
-        return $rows->map(fn ($row) => [
-            'name' => $row->ext,
-            'count' => (int) $row->count,
-            'pct' => $total > 0 ? round($row->count / $total * 100, 1) : 0,
-        ])->toArray();
+        arsort($extCounts);
+        $extCounts = array_slice($extCounts, 0, $limit, true);
+
+        $total = array_sum($extCounts);
+        $result = [];
+        foreach ($extCounts as $name => $count) {
+            $result[] = [
+                'name' => $name,
+                'count' => $count,
+                'pct' => $total > 0 ? round($count / $total * 100, 1) : 0,
+            ];
+        }
+
+        return $result;
     }
 
     /**

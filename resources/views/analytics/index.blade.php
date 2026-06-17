@@ -177,12 +177,6 @@
                 </div>
                 {{-- Chart area --}}
                 <div class="flex-1 relative overflow-visible" style="height: 220px;">
-                    {{-- Grid lines --}}
-                    <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                        <template x-for="(tick, i) in yTicks().slice().reverse()" :key="'gl-'+i">
-                            <div class="border-t border-gray-200 dark:border-gray-700 w-full"></div>
-                        </template>
-                    </div>
                     {{-- Bars --}}
                     <div class="absolute inset-0 flex items-end gap-3px px-1 overflow-visible">
                         <template x-for="(day, idx) in dailyData" :key="idx">
@@ -286,12 +280,6 @@
                 </div>
                 {{-- Chart area --}}
                 <div class="flex-1 relative overflow-visible" style="height: 200px;">
-                    {{-- Grid lines --}}
-                    <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                        <template x-for="(tick, i) in sizeYTicks().slice().reverse()" :key="'sgl-'+i">
-                            <div class="border-t border-gray-200 dark:border-gray-700 w-full"></div>
-                        </template>
-                    </div>
                     {{-- Bars --}}
                     <div class="absolute inset-0 flex items-end gap-4 px-2 overflow-visible">
                         <template x-for="(count, idx) in sizes" :key="idx">

@@ -323,7 +323,26 @@ class EventService
             }
         }
 
-        return array_values($days);
+                // Fill in zero-count days so the chart always shows the full date range
+        $filled = [];
+        $current = Carbon::parse($from)->startOfDay();
+        $end = Carbon::parse($to)->startOfDay();
+
+        while ($current->lte($end)) {
+            $key = $current->toDateString();
+            $filled[] = $days[$key] ?? [
+                'date' => $current->format('M j'),
+                'CREATED' => 0,
+                'MODIFIED' => 0,
+                'DELETED' => 0,
+                'RENAMED' => 0,
+                'MOVED' => 0,
+                'MOVED_AND_RENAMED' => 0,
+            ];
+            $current->addDay();
+        }
+
+        return $filled;
     }
 
     /**

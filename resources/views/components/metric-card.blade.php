@@ -1,4 +1,13 @@
-@props(['title', 'value', 'trend' => null, 'trendDirection' => 'neutral', 'sparkline' => null, 'icon' => null, 'subtitle' => null])
+@props([
+    'title',
+    'value',
+    'trend' => null,
+    'trendDirection' => 'neutral',
+    'sparkline' => null,
+    'icon' => null,
+    'subtitle' => null,
+    'color' => 'indigo',
+])
 
 <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md transition-shadow">
     <div class="flex items-start justify-between">
@@ -31,8 +40,8 @@
         </div>
 
         @if ($icon)
-            <div class="flex-shrink-0 p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-                <svg class="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center card-icon-{{ $color }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"/>
                 </svg>
             </div>
@@ -49,7 +58,7 @@
             @foreach ($sparkline as $day)
                 @php
                     $height = $maxCount > 0 ? ($day['count'] / $maxCount) * 100 : 0;
-                    $height = max($height, 2); // minimum height for visibility
+                    $height = max($height, 2);
                 @endphp
                 <div
                     class="flex-1 bg-indigo-200 dark:bg-indigo-800 rounded-t transition-all duration-300 hover:bg-indigo-400 dark:hover:bg-indigo-600"

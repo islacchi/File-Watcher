@@ -3,6 +3,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <x-metric-card
             title="Events Today"
+            color="indigo"
             :value="$viewModel->eventsToday"
             :trend="$viewModel->todayTrend['value']"
             :trend-direction="$viewModel->todayTrend['direction']"
@@ -12,6 +13,7 @@
 
         <x-metric-card
             title="Deletions (24h)"
+            color="red"
             :value="$viewModel->deletionsLast24h"
             :trend="$viewModel->deletionsTrend['value']"
             :trend-direction="$viewModel->deletionsTrend['direction']"
@@ -20,12 +22,14 @@
 
         <x-metric-card
             title="Tracked Files"
+            color="emerald"
             :value="$viewModel->totalTrackedFiles"
             icon="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M4 7c0-2 1-3 3-3h10c2 0 3 1 3 3M4 7h16M9 11h.01M15 11h.01M9 15h.01M15 15h.01"
         />
 
         <x-metric-card
             title="Last Startup Scan"
+            color="blue"
             :value="$viewModel->relativeStartupTime()"
             :subtitle="$viewModel->lastStartupTime ? \App\Services\Formatter::formatTimestamp($viewModel->lastStartupTime) : 'No events today'"
             icon="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
@@ -121,7 +125,7 @@
                     @foreach ($recentActivity as $event)
                         <div class="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                             {{-- File Icon --}}
-                            <div class="flex-shrink-0">
+                            <div class="shrink-0">
                                 <svg class="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
@@ -141,7 +145,7 @@
                             </div>
 
                             {{-- Time --}}
-                            <div class="flex-shrink-0 text-right">
+                            <div class="shrink-0 text-right">
                                 <p class="text-xs text-gray-500 dark:text-gray-400" title="{{ $event->formattedTime }}">
                                     {{ $event->relativeTime }}
                                 </p>

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @custom-variant dark (&:is(.dark *));
 
-@source inline("ml-60 ml-16 w-60 w-16 translate-x-4.5 translate-x-0.5 dark:bg-gray-800 dark:bg-gray-700 dark:border-gray-700");
+@source inline("ml-60 ml-16 w-60 w-16 translate-x-4.5 translate-x-0.5 dark:bg-gray-800 dark:bg-gray-700 dark:border-gray-700 card-icon-indigo card-icon-blue card-icon-amber card-icon-emerald card-icon-red");
 
 @layer components {
 
@@ -103,6 +103,18 @@
     .bar-renamed { background-color: rgb(168 85 247); }
     .bar-moved { background-color: rgb(20 184 166); }
     .bar-moved-renamed { background-color: rgb(99 102 241); }
+
+    /* ── Dashboard cards ───────────────────────────────────── */
+    .card-icon-red {
+    background-color: rgb(254 242 242);
+    box-shadow: 0 0 0 1px rgb(254 202 202);
+    }
+    .card-icon-red svg { color: rgb(220 38 38); }
+    :is(.dark *) .card-icon-red {
+        background-color: rgb(220 38 38 / 0.2);
+        box-shadow: 0 0 0 1px rgb(185 28 28 / 0.5);
+    }
+    :is(.dark *) .card-icon-red svg { color: rgb(252 165 165); }
 
     /* ── Directory tree ───────────────────────────────────── */
     .tree-chevron-open { transform: rotate(90deg); }

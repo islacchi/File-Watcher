@@ -148,20 +148,6 @@
             </template>
         </div>
 
-        {{-- Header --}}
-        <div class="flex items-center justify-between mb-6">
-            <h1 class="text-lg font-bold text-gray-900 dark:text-white"></h1>
-            <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
-                <template x-for="opt in [{k:'7d',l:'7d'},{k:'30d',l:'30d'},{k:'90d',l:'90d'},{k:'365d',l:'1y'}]" :key="opt.k">
-                    <button
-                        @click="range = opt.k"
-                        :class="range === opt.k ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
-                        class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors"
-                        x-text="opt.l"
-                    ></button>
-                </template>
-            </div>
-        </div>
 
         {{-- Section 1: Summary metric cards --}}
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -222,6 +208,21 @@
                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">across all events</p>
             </div>
 
+        </div>
+
+        {{-- Header --}}
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-lg font-bold text-gray-900 dark:text-white"></h1>
+            <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                <template x-for="opt in [{k:'7d',l:'7d'},{k:'30d',l:'30d'},{k:'90d',l:'90d'},{k:'365d',l:'1y'}]" :key="opt.k">
+                    <button
+                        @click="range = opt.k"
+                        :class="range === opt.k ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
+                        class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors"
+                        x-text="opt.l"
+                    ></button>
+                </template>
+            </div>
         </div>
 
 

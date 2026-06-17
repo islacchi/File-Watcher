@@ -282,4 +282,235 @@ class EventService
 
         return $extensions;
     }
+
+    /**
+     * Analytics: event volume by type per day within a date range.
+     *
+     * @return array<int, array{date: string, CREATED: int, MODIFIED: int, DELETED: int, RENAMED: int, MOVED: int, MOVED_AND_RENAMED: int}>
+     */
+    public function getAnalyticsDailyByType(string $from, string $to): array
+    {
+        $rows = Event::select(
+                DB::raw("DATE(timestamp) as day"),
+                'event_type',
+                DB::raw('COUNT(*) as count')
+            )
+            ->where('timestamp', '>=', $from)
+            ->where('timestamp', '<=', $to)
+            ->groupBy('day', 'event_type')
+            ->orderBy('day', 'asc')
+            ->get();
+
+        // Pivot into per-day arrays keyed by date
+        $days = [];
+        foreach ($rows as $row) {
+            $day = $row->day;
+            if (! isset($days[$day])) {
+                $days[$day] = [
+                    'date' => Carbon::parse($day)->format('M j'),
+                    'CREATED' => 0,
+                    'MODIFIED' => 0,
+                    'DELETED' => 0,
+                    'RENAMED' => 0,
+                    'MOVED' => 0,
+                    'MOVED_AND_RENAMED' => 0,
+                ];
+            }
+            // Strip "(offline)" suffix and map to the canonical key
+            $cleanType = str_replace(' (offline)', '', $row->event_type);
+            if (isset($days[$day][$cleanType])) {
+                $days[$day][$cleanType] += (int) $row->count;
+            }
+        }
+
+        return array_values($days);
+    }
+
+    /**
+     * Analytics: top folders by activity within a date range.
+     * Extracts the last two path segments from src_path and strips the common prefix.
+     *
+     * @return array<int, array{name: string, count: int, pct: float}>
+     */
+    public function getAnalyticsTopFolders(string $from, string $to, int $limit = 10): array
+    {
+        $rows = Event::select('src_path', DB::raw('COUNT(*) as count'))
+            ->where('timestamp', '>=', $from)
+            ->where('timestamp', '<=', $to)
+            ->whereNotNull('src_path')
+            ->groupBy('src_path')
+            ->orderByDesc('count')
+            ->limit($limit * 5) // Get more raw paths, then deduplicate after truncation
+            ->get();
+
+        // Extract last 2 path segments
+        $folderCounts = [];
+        foreach ($rows as $row) {
+            $segments = preg_split('/[\\\\\/]/', $row->src_path);
+            $segments = array_filter($segments, fn ($s) => $s !== '');
+            $lastTwo = array_slice($segments, -2);
+            $folder = implode('\\', $lastTwo);
+            $folderCounts[$folder] = ($folderCounts[$folder] ?? 0) + (int) $row->count;
+        }
+
+        // Sort by count descending and limit
+        arsort($folderCounts);
+        $folderCounts = array_slice($folderCounts, 0, $limit, true);
+
+        // Find common prefix to strip
+        $folders = array_keys($folderCounts);
+        $commonPrefix = '';
+        if (count($folders) > 1) {
+            $parts = array_map(fn ($f) => explode('\\', $f), $folders);
+            $minLen = min(array_map('count', $parts));
+            for ($i = 0; $i < $minLen; $i++) {
+                $segment = $parts[0][$i];
+                if (str_contains($segment, '...')) {
+                    break;
+                }
+                $allMatch = true;
+                foreach ($parts as $p) {
+                    if ($p[$i] !== $segment) {
+                        $allMatch = false;
+                        break;
+                    }
+                }
+                if ($allMatch) {
+                    $commonPrefix .= ($commonPrefix ? '\\' : '') . $segment;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Strip common prefix from display names
+        $total = array_sum($folderCounts);
+        $result = [];
+        foreach ($folderCounts as $name => $count) {
+            $displayName = $commonPrefix ? preg_replace('/^' . preg_quote($commonPrefix, '/') . '\\\\?/', '', $name) : $name;
+            $result[] = [
+                'name' => $displayName ?: $name,
+                'count' => $count,
+                'pct' => $total > 0 ? round($count / $total * 100, 1) : 0,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Analytics: file extension breakdown within a date range.
+     *
+     * @return array<int, array{name: string, count: int, pct: float}>
+     */
+    public function getAnalyticsTopExtensions(string $from, string $to, int $limit = 8): array
+    {
+        $rows = Event::select(
+                DB::raw("LOWER(SUBSTR(src_path, INSTR(src_path, '.')+1)) as ext"),
+                DB::raw('COUNT(*) as count')
+            )
+            ->where('timestamp', '>=', $from)
+            ->where('timestamp', '<=', $to)
+            ->whereNotNull('src_path')
+            ->where('src_path', 'LIKE', '%.%')
+            ->groupBy('ext')
+            ->orderByDesc('count')
+            ->limit($limit)
+            ->get();
+
+        $total = $rows->sum('count');
+
+        return $rows->map(fn ($row) => [
+            'name' => $row->ext,
+            'count' => (int) $row->count,
+            'pct' => $total > 0 ? round($row->count / $total * 100, 1) : 0,
+        ])->toArray();
+    }
+
+    /**
+     * Analytics: file size distribution within a date range.
+     * Buckets: <10KB, 10-50KB, 50-200KB, 200KB-1MB, 1-10MB, >10MB
+     *
+     * @return array{int, int, int, int, int, int}
+     */
+    public function getAnalyticsSizeDistribution(string $from, string $to): array
+    {
+        $rows = Event::select(
+                DB::raw('
+                    CASE
+                        WHEN file_size < 10240 THEN 0
+                        WHEN file_size < 51200 THEN 1
+                        WHEN file_size < 204800 THEN 2
+                        WHEN file_size < 1048576 THEN 3
+                        WHEN file_size < 10485760 THEN 4
+                        ELSE 5
+                    END as bucket
+                '),
+                DB::raw('COUNT(*) as count')
+            )
+            ->where('timestamp', '>=', $from)
+            ->where('timestamp', '<=', $to)
+            ->groupBy('bucket')
+            ->get();
+
+        $buckets = [0, 0, 0, 0, 0, 0];
+        foreach ($rows as $row) {
+            $buckets[(int) $row->bucket] = (int) $row->count;
+        }
+
+        return $buckets;
+    }
+
+    /**
+     * Analytics: total count and total file_size within a date range.
+     *
+     * @return array{total: int, totalSize: int}
+     */
+    public function getAnalyticsTotals(string $from, string $to): array
+    {
+        $result = Event::where('timestamp', '>=', $from)
+            ->where('timestamp', '<=', $to)
+            ->select(
+                DB::raw('COUNT(*) as total'),
+                DB::raw('COALESCE(SUM(file_size), 0) as total_size')
+            )
+            ->first();
+
+        return [
+            'total' => (int) $result->total,
+            'totalSize' => (int) $result->total_size,
+        ];
+    }
+
+    /**
+     * Analytics: most active event type within a date range.
+     *
+     * @return array{type: string, count: int, pct: float}
+     */
+    public function getAnalyticsMostActiveType(string $from, string $to): array
+    {
+        $row = Event::select('event_type', DB::raw('COUNT(*) as count'))
+            ->where('timestamp', '>=', $from)
+            ->where('timestamp', '<=', $to)
+            ->groupBy('event_type')
+            ->orderByDesc('count')
+            ->first();
+
+        if (! $row) {
+            return ['type' => 'N/A', 'count' => 0, 'pct' => 0];
+        }
+
+        $total = Event::where('timestamp', '>=', $from)
+            ->where('timestamp', '<=', $to)
+            ->count();
+
+        // Strip "(offline)" for display
+        $cleanType = str_replace(' (offline)', '', $row->event_type);
+
+        return [
+            'type' => $cleanType,
+            'count' => (int) $row->count,
+            'pct' => $total > 0 ? round($row->count / $total * 100) : 0,
+        ];
+    }
 }

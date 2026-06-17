@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" x-data="{ dark: localStorage.getItem('dark') === 'true' }" :class="{ 'dark': dark }">
+<html lang="en" x-init="dark = localStorage.getItem('dark') === 'true'; document.documentElement.classList.toggle('dark', dark)">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +14,7 @@
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen" x-cloak>
 
 <div x-data="{
+    dark: localStorage.getItem('dark') === 'true',
     sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
     autoRefresh: localStorage.getItem('autoRefresh') === 'true',
     status: 'online',
@@ -27,6 +28,7 @@
     toggleDark() {
         this.dark = !this.dark;
         localStorage.setItem('dark', this.dark);
+        document.documentElement.classList.toggle('dark', this.dark);
     },
     toggleAutoRefresh() {
         this.autoRefresh = !this.autoRefresh;
@@ -88,7 +90,7 @@
         {{-- Logo --}}
         <div class="flex items-center h-14 px-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center gap-2 min-w-0">
-                <svg class="w-7 h-7 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-7 h-7 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                 </svg>
@@ -101,6 +103,7 @@
             @php
                 $navItems = [
                     ['route' => 'filewatcher.dashboard', 'label' => 'Dashboard', 'icon' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', 'count' => $eventsCountToday],
+                    ['route' => 'filewatcher.analytics', 'label' => 'Analytics', 'icon' => 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'],
                     ['route' => 'filewatcher.events', 'label' => 'Events Log', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
                     ['route' => 'filewatcher.snapshot', 'label' => 'Snapshot', 'icon' => 'M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M4 7c0-2 1-3 3-3h10c2 0 3 1 3 3M4 7h16M9 11h.01M15 11h.01M9 15h.01M15 15h.01', 'count' => $staleCount],
                 ];
@@ -119,13 +122,13 @@
                         }}"
                     title="{{ $item['label'] }}{{ isset($item['count']) && $item['count'] > 0 ? ' (' . $item['count'] . ')' : '' }}"
                 >
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $item['icon'] }}"/>
                     </svg>
                     <span x-show="sidebarOpen" x-transition class="whitespace-nowrap flex items-center gap-2">
                         {{ $item['label'] }}
                         @if (isset($item['count']) && $item['count'] > 0)
-                            <span class="inline-flex items-center justify-center min-w-[1.25rem] h-4 px-1 text-[10px] font-bold rounded-full
+                            <span class="inline-flex items-center justify-center min-w-5 h-4 px-1 text-[10px] font-bold rounded-full
                                 {{ $item['route'] === 'filewatcher.dashboard' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : '' }}
                                 {{ $item['route'] === 'filewatcher.snapshot' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300' : '' }}
                             ">
@@ -153,7 +156,7 @@
     </aside>
 
     {{-- Main Content --}}
-    <div :class="sidebarOpen ? 'ml-60' : 'ml-16'" class="flex-1 transition-all duration-200">
+    <div :class="sidebarOpen ? 'ml-60' : 'ml-16'" class="flex-1 min-w-0 transition-[margin] duration-200">
 
         {{-- Top Bar --}}
         <header class="sticky top-0 z-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-14">

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\FileController;
@@ -15,6 +16,7 @@ Route::get('/', function () {
 
 Route::prefix('filewatcher')->name('filewatcher.')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
     Route::get('/events', [EventController::class, 'index'])->name('events');
     Route::get('/files', [FileController::class, 'timeline'])->name('files.timeline');
     Route::get('/snapshot/tree', [SnapshotController::class, 'tree'])->name('snapshot.tree');

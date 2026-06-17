@@ -1,0 +1,310 @@
+<x-layouts.app :title="'Analytics'">
+    @php
+        $eventTypes = ['CREATED', 'MODIFIED', 'DELETED', 'RENAMED', 'MOVED', 'MOVED_AND_RENAMED'];
+        $typeLabels = [
+            'CREATED' => 'Created',
+            'MODIFIED' => 'Modified',
+            'DELETED' => 'Deleted',
+            'RENAMED' => 'Renamed',
+            'MOVED' => 'Moved',
+            'MOVED_AND_RENAMED' => 'Moved & Renamed',
+        ];
+        $typeColors = [
+            'CREATED' => 'bg-green-500',
+            'MODIFIED' => 'bg-blue-500',
+            'DELETED' => 'bg-red-500',
+            'RENAMED' => 'bg-yellow-500',
+            'MOVED' => 'bg-teal-400',
+            'MOVED_AND_RENAMED' => 'bg-indigo-400',
+        ];
+        $typeHex = [
+            'CREATED' => '#22c55e',
+            'MODIFIED' => '#3b82f6',
+            'DELETED' => '#ef4444',
+            'RENAMED' => '#eab308',
+            'MOVED' => '#2dd4bf',
+            'MOVED_AND_RENAMED' => '#818cf8',
+        ];
+        $sizeBuckets = ['<10 KB', '10–50 KB', '50–200 KB', '200 KB–1 MB', '1–10 MB', '>10 MB'];
+    @endphp
+
+    <div x-data="{
+        range: '7d',
+        eventTypes: @js($eventTypes),
+        typeLabels: @js($typeLabels),
+        typeColors: @js($typeColors),
+        dailyByType: @js($dailyByType),
+        topFolders: @js($topFolders),
+        topExtensions: @js($topExtensions),
+        sizeDistribution: @js($sizeDistribution),
+        summaryCards: @js($summaryCards),
+        sizeBuckets: @js($sizeBuckets),
+
+        get dailyData() { return this.dailyByType[this.range] || this.dailyByType['7d']; },
+        get folders() { return this.topFolders[this.range] || this.topFolders['7d']; },
+        get extensions() { return this.topExtensions[this.range] || this.topExtensions['7d']; },
+        get sizes() { return this.sizeDistribution[this.range] || this.sizeDistribution['7d']; },
+        get summary() { return this.summaryCards[this.range] || this.summaryCards['7d']; },
+
+        get typeTotals() {
+            let totals = {};
+            let grand = 0;
+            this.eventTypes.forEach(t => { totals[t] = 0; });
+            this.dailyData.forEach(day => {
+                this.eventTypes.forEach(t => { totals[t] += (day[t] || 0); });
+                grand += this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0);
+            });
+            return { totals, grand };
+        },
+
+        get totalSize() { return this.sizes.reduce((a, b) => a + b, 0); },
+        get maxSize() { return Math.max(...this.sizes, 1); },
+        get maxFolderCount() { return Math.max(...this.folders.map(f => f.count), 1); },
+        get maxExtCount() { return Math.max(...this.extensions.map(e => e.count), 1); },
+
+        get stackMax() {
+            return Math.max(...this.dailyData.map(day =>
+                this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0)
+            ), 1);
+        },
+
+        yTicks() {
+            let max = Math.ceil(this.stackMax / 20) * 20;
+            let ticks = [];
+            for (let i = 0; i <= max; i += 20) ticks.push(i);
+            return ticks;
+        },
+
+        sizeYTicks() {
+            let max = Math.ceil(this.maxSize / 50) * 50;
+            let ticks = [];
+            for (let i = 0; i <= max; i += 50) ticks.push(i);
+            return ticks;
+        },
+
+        stackPercent(day, type) {
+            return this.stackMax > 0 ? ((day[type] || 0) / this.stackMax * 100) : 0;
+        },
+
+        sizePercent(count) {
+            return this.maxSize > 0 ? (count / this.maxSize * 100) : 0;
+        },
+
+        rangeLabel() {
+            return { '7d': 'over 7 days', '30d': 'over 30 days', '90d': 'over 90 days', '365d': 'over 1 year' }[this.range];
+        }
+    }">
+
+        {{-- Header --}}
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-lg font-bold text-gray-900 dark:text-white">Analytics</h1>
+            <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                <template x-for="opt in [{k:'7d',l:'7d'},{k:'30d',l:'30d'},{k:'90d',l:'90d'},{k:'365d',l:'1y'}]" :key="opt.k">
+                    <button
+                        @click="range = opt.k"
+                        :class="range === opt.k ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
+                        class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors"
+                        x-text="opt.l"
+                    ></button>
+                </template>
+            </div>
+        </div>
+
+        {{-- Section 1: Summary metric cards --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total events</span>
+                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1" x-text="summary.total.toLocaleString()"></p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1" x-text="rangeLabel()"></p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Daily average</span>
+                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1" x-text="summary.avg.toLocaleString()"></p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">events per day</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Most active type</span>
+                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1" x-text="typeLabels[summary.mostActive] || summary.mostActive"></p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1" x-text="summary.pct + '% of all events'"></p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total data affected</span>
+                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1" x-text="summary.data"></p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">across all events</p>
+            </div>
+        </div>
+
+        {{-- Section 2: Event volume by type (stacked bar chart) --}}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Event volume by type</h3>
+
+            {{-- Empty state --}}
+            <div x-show="dailyData.length === 0" x-cloak class="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
+                No events for this period
+            </div>
+
+            {{-- Custom legend --}}
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-5">
+                <template x-for="t in eventTypes" :key="t">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-sm shrink-0" :class="typeColors[t]"></span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400" x-text="typeLabels[t]"></span>
+                        <span class="text-xs text-gray-400 dark:text-gray-500"
+                              x-text="typeTotals.grand > 0 ? Math.round(typeTotals.totals[t] / typeTotals.grand * 100) + '%' : '0%'"></span>
+                    </div>
+                </template>
+            </div>
+
+            {{-- Chart with Y-axis + bars --}}
+            <div class="flex gap-2">
+                {{-- Y-axis --}}
+                <div class="flex flex-col justify-between text-right pr-1" style="height: 220px;">
+                    <template x-for="(tick, i) in yTicks().slice().reverse()" :key="'yt-'+i">
+                        <span class="text-[10px] text-gray-400 dark:text-gray-500 leading-none" x-text="tick"></span>
+                    </template>
+                </div>
+                {{-- Chart area --}}
+                <div class="flex-1 relative overflow-visible" style="height: 220px;">
+                    {{-- Grid lines --}}
+                    <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                        <template x-for="(tick, i) in yTicks().slice().reverse()" :key="'gl-'+i">
+                            <div class="border-t border-gray-200 dark:border-gray-700 w-full"></div>
+                        </template>
+                    </div>
+                    {{-- Bars --}}
+                    <div class="absolute inset-0 flex items-end gap-3px px-1 overflow-visible">
+                        <template x-for="(day, idx) in dailyData" :key="idx">
+                            <div class="flex flex-col items-center justify-end flex-1 h-full group relative z-10 overflow-visible">
+                                {{-- Tooltip --}}
+                                <div class="absolute bottom-full mb-2 z-20 hidden group-hover:block bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap pointer-events-none"
+                                     :class="idx === 0 ? 'left-0' : idx === dailyData.length - 1 ? 'right-0' : ''">
+                                    <div class="font-semibold mb-1" x-text="day.date"></div>
+                                    <template x-for="t in eventTypes" :key="'tip-'+t">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-sm" :class="typeColors[t]"></span>
+                                            <span x-text="typeLabels[t] + ': ' + (day[t] || 0)"></span>
+                                        </div>
+                                    </template>
+                                    <div class="border-t border-gray-600 mt-1 pt-1 font-bold"
+                                         x-text="'Total: ' + eventTypes.reduce((s, t) => s + (day[t] || 0), 0)">
+                                    </div>
+                                </div>
+                                {{-- Bar stack (order: MOVED_AND_RENAMED first = bottom) --}}
+                                <template x-for="t in [...eventTypes].reverse()" :key="'bar-'+idx+'-'+t">
+                                    <div class="w-full rounded-t-sm transition-all duration-300"
+                                         :class="typeColors[t]"
+                                         :style="'height: ' + stackPercent(day, t) + '%'"></div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            {{-- X-axis labels --}}
+            <div class="flex gap-3px ml-38px mt-2">
+                <template x-for="(day, idx) in dailyData" :key="'label-'+idx">
+                    <div class="flex-1 text-center">
+                        <span x-show="dailyData.length <= 14 || idx % Math.ceil(dailyData.length / 7) === 0"
+                              class="text-[10px] text-gray-400 dark:text-gray-500" x-text="day.date"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        {{-- Section 3: Top folders + File extensions --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {{-- Top folders --}}
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Top folders by activity</h3>
+                <div x-show="folders.length === 0" x-cloak class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">No folder data</div>
+                <div class="space-y-3">
+                    <template x-for="(folder, idx) in folders" :key="idx">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-mono text-gray-700 dark:text-gray-300 truncate max-w-[60%]"
+                                      :title="folder.name"
+                                      x-text="folder.name.split(/[\\\\/]/).filter(s => s.length > 0).slice(-2).join('\\\\')"></span>
+                                <div class="flex items-center gap-3 shrink-0">
+                                    <span class="text-xs font-bold text-gray-900 dark:text-white w-12 text-right" x-text="folder.count.toLocaleString()"></span>
+                                    <span class="text-[10px] text-gray-400 dark:text-gray-500 w-10 text-right" x-text="folder.pct + '%'"></span>
+                                </div>
+                            </div>
+                            <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div class="h-full bg-teal-500 rounded-full transition-all duration-500"
+                                     :style="'width: ' + (maxFolderCount > 0 ? (folder.count / maxFolderCount * 100) : 0) + '%'"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            {{-- File extensions --}}
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">File extensions</h3>
+                <div x-show="extensions.length === 0" x-cloak class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">No extension data</div>
+                <div class="space-y-3">
+                    <template x-for="(ext, idx) in extensions" :key="idx">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-mono font-semibold text-gray-700 dark:text-gray-300">.<span x-text="ext.name"></span></span>
+                                <div class="flex items-center gap-3 shrink-0">
+                                    <span class="text-xs font-bold text-gray-900 dark:text-white w-12 text-right" x-text="ext.count.toLocaleString()"></span>
+                                    <span class="text-[10px] text-gray-400 dark:text-gray-500 w-10 text-right" x-text="ext.pct + '%'"></span>
+                                </div>
+                            </div>
+                            <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div class="h-full bg-teal-500 rounded-full transition-all duration-500"
+                                     :style="'width: ' + (maxExtCount > 0 ? (ext.count / maxExtCount * 100) : 0) + '%'"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        {{-- Section 4: File size distribution --}}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">File size distribution — events by size bucket</h3>
+            <div class="flex gap-2">
+                {{-- Y-axis --}}
+                <div class="flex flex-col justify-between text-right pr-1" style="height: 200px;">
+                    <template x-for="(tick, i) in sizeYTicks().slice().reverse()" :key="'syt-'+i">
+                        <span class="text-[10px] text-gray-400 dark:text-gray-500 leading-none" x-text="tick"></span>
+                    </template>
+                </div>
+                {{-- Chart area --}}
+                <div class="flex-1 relative overflow-visible" style="height: 200px;">
+                    {{-- Grid lines --}}
+                    <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                        <template x-for="(tick, i) in sizeYTicks().slice().reverse()" :key="'sgl-'+i">
+                            <div class="border-t border-gray-200 dark:border-gray-700 w-full"></div>
+                        </template>
+                    </div>
+                    {{-- Bars --}}
+                    <div class="absolute inset-0 flex items-end gap-4 px-2 overflow-visible">
+                        <template x-for="(count, idx) in sizes" :key="idx">
+                            <div class="flex flex-col items-center justify-end flex-1 h-full group relative z-10 overflow-visible">
+                                <div class="absolute bottom-full mb-2 z-20 hidden group-hover:block bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap pointer-events-none"
+                                     :class="idx === 0 ? 'left-0' : idx === sizes.length - 1 ? 'right-0' : ''">
+                                    <div class="font-semibold" x-text="sizeBuckets[idx]"></div>
+                                    <div x-text="count.toLocaleString() + ' events'"></div>
+                                </div>
+                                <div class="w-full bg-blue-500 rounded-t-md transition-all duration-500 group-hover:bg-blue-400"
+                                     :style="'height: ' + sizePercent(count) + '%'"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            {{-- X-axis labels --}}
+            <div class="flex gap-4 ml-38px mt-2">
+                <template x-for="(bucket, idx) in sizeBuckets" :key="'sb-'+idx">
+                    <div class="flex-1 text-center">
+                        <span class="text-[10px] text-gray-400 dark:text-gray-500" x-text="bucket"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+    </div>
+</x-layouts.app>

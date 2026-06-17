@@ -1,2 +1,4 @@
 @import "tailwindcss";
 @custom-variant dark (&:is(.dark *));
+
+@source inline("w-60 w-16 ml-60 ml-16 translate-x-4.5 translate-x-0.5");

@@ -21,10 +21,10 @@ class AnalyticsController extends Controller
 
         // Date ranges for each pill (4 ranges computed server-side)
         $ranges = [
-            '7d'   => $now->copy()->subDays(7)->startOfDay()->toIso8601String(),
-            '30d'  => $now->copy()->subDays(30)->startOfDay()->toIso8601String(),
-            '90d'  => $now->copy()->subDays(90)->startOfDay()->toIso8601String(),
-            '365d' => $now->copy()->subDays(365)->startOfDay()->toIso8601String(),
+            '7d'   => $now->copy()->subDays(6)->startOfDay()->toIso8601String(),
+            '30d'  => $now->copy()->subDays(29)->startOfDay()->toIso8601String(),
+            '90d'  => $now->copy()->subDays(89)->startOfDay()->toIso8601String(),
+            '365d' => $now->copy()->subDays(364)->startOfDay()->toIso8601String(),
         ];
         $to = $now->toIso8601String();
 
@@ -45,8 +45,9 @@ class AnalyticsController extends Controller
             $totals = $this->eventService->getAnalyticsTotals($from, $to);
             $mostActive = $this->eventService->getAnalyticsMostActiveType($from, $to);
 
-            $daysCount = $now->diffInDays(Carbon::parse($from)) ?: 1;
-            $dailyAvg = $daysCount > 0 ? round($totals['total'] / $daysCount) : 0;
+            $daysMap = ['7d' => 7, '30d' => 30, '90d' => 90, '365d' => 365];
+            $daysCount = $daysMap[$key] ?? 1;
+            $dailyAvg = round($totals['total'] / $daysCount);
 
             $summaryCards[$key] = [
                 'total' => $totals['total'],

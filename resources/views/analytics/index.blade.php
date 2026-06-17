@@ -29,6 +29,24 @@
     @endphp
 
     <div x-data="{
+    tooltip: { visible: false, x: 0, y: 0, day: null },
+        showTooltip(event, day) {
+            this.tooltip = {
+                visible: true,
+                x: event.clientX,
+                y: event.clientY + window.scrollY,
+                day: day
+            };
+        },
+        updateTooltip(event) {
+            if (this.tooltip.visible) {
+                this.tooltip.x = event.clientX;
+                this.tooltip.y = event.clientY + window.scrollY;
+            }
+        },
+        hideTooltip() {
+            this.tooltip.visible = false;
+        },
         range: '7d',
         eventTypes: @js($eventTypes),
         typeLabels: @js($typeLabels),
@@ -106,6 +124,27 @@
             return { '7d': 'over 7 days', '30d': 'over 30 days', '90d': 'over 90 days', '365d': 'over 1 year' }[this.range];
         }
     }">
+        {{-- Global tooltip portal --}}
+        <div
+            x-show="tooltip.visible"
+            x-cloak
+            class="fixed bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap pointer-events-none"
+            :style="'z-index: 9999; left: ' + (tooltip.x + 12) + 'px; top: ' + (tooltip.y - 12) + 'px; transform: translateY(-100%);'"
+        >
+            <template x-if="tooltip.day">
+                <div>
+                    <div class="font-semibold mb-1" x-text="tooltip.day.date"></div>
+                    <template x-for="t in eventTypes" :key="t">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-sm" :class="typeColors[t]"></span>
+                            <span x-text="typeLabels[t] + ': ' + (tooltip.day[t] || 0)"></span>
+                        </div>
+                    </template>
+                    <div class="border-t border-gray-600 mt-1 pt-1 font-bold"
+                        x-text="'Total: ' + eventTypes.reduce((s, t) => s + (tooltip.day[t] || 0), 0)"></div>
+                </div>
+            </template>
+        </div>
 
         {{-- Header --}}
         <div class="flex items-center justify-between mb-6">
@@ -146,8 +185,9 @@
             </div>
         </div>
 
+
         {{-- Section 2: Event volume by type (stacked bar chart) --}}
-        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6 relative">
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Event volume by type</h3>
 
             {{-- Empty state --}}
@@ -162,60 +202,64 @@
                         <span class="w-3 h-3 rounded-sm shrink-0" :class="typeColors[t]"></span>
                         <span class="text-xs text-gray-600 dark:text-gray-400" x-text="typeLabels[t]"></span>
                         <span class="text-xs text-gray-400 dark:text-gray-500"
-                              x-text="typeTotals.grand > 0 ? Math.round(typeTotals.totals[t] / typeTotals.grand * 100) + '%' : '0%'"></span>
+                            x-text="typeTotals.grand > 0 ? Math.round(typeTotals.totals[t] / typeTotals.grand * 100) + '%' : '0%'"></span>
                     </div>
                 </template>
             </div>
 
-            {{-- Chart with Y-axis + bars --}}
-            <div class="flex gap-2">
-                {{-- Y-axis --}}
-                <div class="flex flex-col justify-between text-right pr-1" style="height: 220px;">
-                    <template x-for="(tick, i) in yTicks().slice().reverse()" :key="'yt-'+i">
-                        <span class="text-[10px] text-gray-400 dark:text-gray-500 leading-none" x-text="tick"></span>
-                    </template>
-                </div>
-                {{-- Chart area --}}
-                <div class="flex-1 relative overflow-visible" style="height: 220px;">
-                    {{-- Bars --}}
-                    <div class="absolute inset-0 flex items-end gap-3px px-1 overflow-visible">
-                        <template x-for="(day, idx) in dailyData" :key="idx">
-                            <div class="flex flex-col items-center justify-end flex-1 h-full group relative z-10 overflow-visible">
-                                {{-- Tooltip --}}
-                                <div class="absolute bottom-full mb-2 z-20 hidden group-hover:block bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap pointer-events-none"
-                                     :class="idx === 0 ? 'left-0' : idx === dailyData.length - 1 ? 'right-0' : ''">
-                                    <div class="font-semibold mb-1" x-text="day.date"></div>
-                                    <template x-for="t in eventTypes" :key="'tip-'+t">
-                                        <div class="flex items-center gap-1.5">
-                                            <span class="w-2 h-2 rounded-sm" :class="typeColors[t]"></span>
-                                            <span x-text="typeLabels[t] + ': ' + (day[t] || 0)"></span>
-                                        </div>
-                                    </template>
-                                    <div class="border-t border-gray-600 mt-1 pt-1 font-bold"
-                                         x-text="'Total: ' + eventTypes.reduce((s, t) => s + (day[t] || 0), 0)">
-                                    </div>
-                                </div>
-                                {{-- Bar stack (order: MOVED_AND_RENAMED first = bottom) --}}
-                                <template x-for="t in [...eventTypes].reverse()" :key="'bar-'+idx+'-'+t">
-                                    <div class="w-full rounded-t-sm transition-all duration-300"
-                                         :class="typeColors[t]"
-                                         :style="'height: ' + stackPercent(day, t) + '%'"></div>
-                                </template>
-                            </div>
+            {{-- Chart container --}}
+            <div class="bg-gray-50 dark:bg-gray-900/40 rounded-lg p-3">
+                <div class="flex gap-2">
+
+                    {{-- Y-axis --}}
+                    <div class="flex flex-col justify-between text-right pr-3 shrink-0" style="height: 220px;">
+                        <template x-for="(tick, i) in yTicks().slice().reverse()" :key="'yt-'+i">
+                            <span class="text-[10px] text-gray-400 dark:text-gray-500 leading-none" x-text="tick"></span>
                         </template>
                     </div>
+                    <div class="w-px bg-gray-200 dark:bg-gray-700 self-stretch shrink-0"></div>
+
+                    {{-- Chart area --}}
+                    <div class="flex-1 min-w-0 relative">
+                        <div :style="dailyData.length > 89 ? 'width: 100%; overflow-x: visible;' : 'min-width: ' + (dailyData.length * 12) + 'px; overflow-x: auto;'">
+
+                            {{-- Bars --}}
+                            <div class="relative flex items-end gap-1 px-1 border-b border-gray-200 dark:border-gray-700" style="height: 220px; overflow: visible;">
+                                <template x-for="(day, idx) in dailyData" :key="idx">
+                                    <div class="flex flex-col items-center justify-end flex-1 h-full relative z-10"
+                                        style="min-width: 8px;"
+                                        @mouseenter="showTooltip($event, day)"
+                                        @mousemove="updateTooltip($event)"
+                                        @mouseleave="hideTooltip()">
+                                        {{-- Bar segments --}}
+                                        <template x-for="(t, ti) in [...eventTypes].reverse()" :key="'bar-'+idx+'-'+t">
+                                            <div class="w-full transition-all duration-300"
+                                                :class="[
+                                                    typeColors[t],
+                                                    ti === [...eventTypes].reverse().findIndex(x => (day[x] || 0) > 0) ? 'rounded-t-sm' : ''
+                                                ]"
+                                                :style="(day[t] || 0) > 0 ? 'height: ' + Math.max(stackPercent(day, t), 1) + '%' : 'height: 0%'"></div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+
+                            {{-- X-axis labels --}}
+                            <div class="flex gap-1 px-1 mt-2">
+                                <template x-for="(day, idx) in dailyData" :key="'label-'+idx">
+                                    <div class="flex-1 text-center" style="min-width: 8px;">
+                                        <span x-show="idx % Math.ceil(dailyData.length / 10) === 0"
+                                            class="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap"
+                                            x-text="day.date"></span>
+                                    </div>
+                                </template>
+                            </div>
+
+                        </div>
+                    </div>{{-- end chart area --}}
+
                 </div>
-            </div>
-            {{-- X-axis labels --}}
-            <div class="flex gap-3px ml-38px mt-2">
-                <template x-for="(day, idx) in dailyData" :key="'label-'+idx">
-                    <div class="flex-1 text-center">
-                        <span x-show="dailyData.length <= 14 || idx % Math.ceil(dailyData.length / 7) === 0"
-                              class="text-[10px] text-gray-400 dark:text-gray-500" x-text="day.date"></span>
-                    </div>
-                </template>
-            </div>
-        </div>
+            </div>{{-- end chart container --}}
 
         {{-- Section 3: Top folders + File extensions --}}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

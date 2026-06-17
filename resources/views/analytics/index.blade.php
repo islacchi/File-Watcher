@@ -69,16 +69,28 @@
         },
 
         yTicks() {
-            let max = Math.ceil(this.stackMax / 20) * 20;
+            let max = this.stackMax;
+            if (max === 0) return [0];
+            const target = 6; // aim for ~6 ticks
+            const rawStep = max / target;
+            const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+            const step = Math.ceil(rawStep / magnitude) * magnitude;
+            const roundedMax = Math.ceil(max / step) * step;
             let ticks = [];
-            for (let i = 0; i <= max; i += 20) ticks.push(i);
+            for (let i = 0; i <= roundedMax; i += step) ticks.push(i);
             return ticks;
         },
 
         sizeYTicks() {
-            let max = Math.ceil(this.maxSize / 50) * 50;
+            let max = this.maxSize;
+            if (max === 0) return [0];
+            const target = 5;
+            const rawStep = max / target;
+            const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+            const step = Math.ceil(rawStep / magnitude) * magnitude;
+            const roundedMax = Math.ceil(max / step) * step;
             let ticks = [];
-            for (let i = 0; i <= max; i += 50) ticks.push(i);
+            for (let i = 0; i <= roundedMax; i += step) ticks.push(i);
             return ticks;
         },
 

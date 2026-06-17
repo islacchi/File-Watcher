@@ -344,6 +344,32 @@ class EventService
 
         return $filled;
     }
+    public function getAnalyticsWeeklyByType(string $from, string $to): array
+    {
+        // Fetch daily data then aggregate into weeks in PHP
+        $daily = $this->getAnalyticsDailyByType($from, $to);
+
+        $weeks = [];
+        foreach ($daily as $day) {
+            $date = Carbon::parse($day['date'] . ' ' . date('Y'));
+            $weekKey = $date->format('o-W'); // ISO year-week
+            $weekLabel = $date->startOfWeek()->format('M j');
+
+            if (!isset($weeks[$weekKey])) {
+                $weeks[$weekKey] = [
+                    'date' => $weekLabel,
+                    'CREATED' => 0, 'MODIFIED' => 0, 'DELETED' => 0,
+                    'RENAMED' => 0, 'MOVED' => 0, 'MOVED_AND_RENAMED' => 0,
+                ];
+            }
+
+            foreach (['CREATED', 'MODIFIED', 'DELETED', 'RENAMED', 'MOVED', 'MOVED_AND_RENAMED'] as $type) {
+                $weeks[$weekKey][$type] += $day[$type] ?? 0;
+            }
+        }
+
+        return array_values($weeks);
+    }
 
     /**
      * Analytics: top folders by activity within a date range.

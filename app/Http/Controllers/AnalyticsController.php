@@ -36,12 +36,14 @@ class AnalyticsController extends Controller
         $summaryCards = [];
 
         foreach ($ranges as $key => $from) {
-            $dailyByType[$key] = $this->eventService->getAnalyticsDailyByType($from, $to);
+            $dailyByType[$key] = $key === '365d'
+                ? $this->eventService->getAnalyticsWeeklyByType($from, $to)
+                : $this->eventService->getAnalyticsDailyByType($from, $to);
+
             $topFolders[$key] = $this->eventService->getAnalyticsTopFolders($from, $to);
             $topExtensions[$key] = $this->eventService->getAnalyticsTopExtensions($from, $to);
             $sizeDistribution[$key] = $this->eventService->getAnalyticsSizeDistribution($from, $to);
 
-            // Summary stats
             $totals = $this->eventService->getAnalyticsTotals($from, $to);
             $mostActive = $this->eventService->getAnalyticsMostActiveType($from, $to);
 

@@ -81,12 +81,14 @@
         get maxExtCount() { return Math.max(...this.extensions.map(e => e.count), 1); },
 
         get stackMax() {
-            return Math.max(...this.dailyData.map(day =>
+            const max = Math.max(...this.dailyData.map(day =>
                 this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0)
             ), 1);
+            return Math.ceil(max * 1.1); // 10% headroom so bars never touch ceiling
         },
 
         yTicks() {
+            
             let max = this.stackMax;
             if (max === 0) return [0];
             const target = 6; // aim for ~6 ticks
@@ -129,7 +131,7 @@
             x-show="tooltip.visible"
             x-cloak
             class="fixed bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap pointer-events-none"
-            :style="'z-index: 9999; left: ' + (tooltip.x + 12) + 'px; top: ' + (tooltip.y - 12) + 'px; transform: translateY(-100%);'"
+            :style="'z-index: 9999; top: ' + (tooltip.y - 12) + 'px; transform: translateY(-100%); ' + (tooltip.x > window.innerWidth - 220 ? 'right: ' + (window.innerWidth - tooltip.x + 12) + 'px;' : 'left: ' + (tooltip.x + 12) + 'px;')"
         >
             <template x-if="tooltip.day">
                 <div>
@@ -148,7 +150,7 @@
 
         {{-- Header --}}
         <div class="flex items-center justify-between mb-6">
-            <h1 class="text-lg font-bold text-gray-900 dark:text-white">Analytics</h1>
+            <h1 class="text-lg font-bold text-gray-900 dark:text-white"></h1>
             <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
                 <template x-for="opt in [{k:'7d',l:'7d'},{k:'30d',l:'30d'},{k:'90d',l:'90d'},{k:'365d',l:'1y'}]" :key="opt.k">
                     <button
@@ -248,7 +250,7 @@
                             <div class="flex gap-1 px-1 mt-2">
                                 <template x-for="(day, idx) in dailyData" :key="'label-'+idx">
                                     <div class="flex-1 text-center" style="min-width: 8px;">
-                                        <span x-show="idx % Math.ceil(dailyData.length / 10) === 0"
+                                        <span x-show="dailyData.length <= 12 || idx % Math.ceil(dailyData.length / 8) === 0"
                                             class="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap"
                                             x-text="day.date"></span>
                                     </div>
@@ -257,9 +259,10 @@
 
                         </div>
                     </div>{{-- end chart area --}}
-
+                    
                 </div>
             </div>{{-- end chart container --}}
+        </div>{{-- end Section 2 card --}}
 
         {{-- Section 3: Top folders + File extensions --}}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

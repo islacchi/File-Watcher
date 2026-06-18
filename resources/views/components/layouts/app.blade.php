@@ -95,7 +95,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                 </svg>
-                <span x-show="sidebarOpen" x-transition class="font-bold text-sm whitespace-nowrap text-gray-900 dark:text-white">File Watcher</span>
+                <span x-show="sidebarOpen" x-transition.opacity class="font-bold text-sm whitespace-nowrap text-gray-900 dark:text-white">File Watcher</span>
             </div>
         </div>
 
@@ -116,23 +116,24 @@
                 @endphp
                 <a
                     href="{{ route($item['route']) }}"
-                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
                         {{ $isActive
-                            ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-l-2 border-indigo-600'
-                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
+                            ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-l-2 border-indigo-600 scale-[1.02]'
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white hover:scale-[1.02]'
                         }}"
                     title="{{ $item['label'] }}{{ isset($item['count']) && $item['count'] > 0 ? ' (' . $item['count'] . ')' : '' }}"
                 >
-                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 shrink-0 transition-transform duration-200" :class="sidebarOpen ? '' : 'scale-110'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $item['icon'] }}"/>
                     </svg>
-                    <span x-show="sidebarOpen" x-transition class="whitespace-nowrap flex items-center gap-2">
+                    <span x-show="sidebarOpen" x-transition.opacity class="whitespace-nowrap flex items-center gap-2">
                         {{ $item['label'] }}
                         @if (isset($item['count']) && $item['count'] > 0)
-                            <span class="inline-flex items-center justify-center min-w-5 h-4 px-1 text-[10px] font-bold rounded-full
-                                {{ $item['route'] === 'filewatcher.dashboard' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : '' }}
-                                {{ $item['route'] === 'filewatcher.snapshot' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300' : '' }}
-                            ">
+                            <span class="inline-flex items-center justify-center min-w-5 h-4 px-1 text-[10px] font-bold rounded-full transition-colors duration-200
+                                {{ $isActive
+                                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
+                                    : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                                }}">
                                 {{ $item['count'] > 99 ? '99+' : $item['count'] }}
                             </span>
                         @endif
@@ -145,13 +146,13 @@
         <div class="border-t border-gray-200 dark:border-gray-700 p-2">
             <button
                 @click="toggleSidebar()"
-                class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
+                class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all duration-200"
                 :title="sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'"
             >
-                <svg class="w-5 h-5 transition-transform" :class="sidebarOpen ? '' : 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 transition-transform duration-200" :class="sidebarOpen ? '' : 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
                 </svg>
-                <span x-show="sidebarOpen" x-transition class="whitespace-nowrap">Collapse</span>
+                <span x-show="sidebarOpen" x-transition.opacity class="whitespace-nowrap">Collapse</span>
             </button>
         </div>
     </aside>

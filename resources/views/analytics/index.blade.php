@@ -64,6 +64,16 @@
         get sizes() { return this.sizeDistribution[this.range] || this.sizeDistribution['7d']; },
         get summary() { return this.summaryCards[this.range] || this.summaryCards['7d']; },
 
+        get hasEventData() {
+            return this.dailyData.some(day =>
+                this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0) > 0
+            );
+        },
+
+        get hasSizeData() {
+            return this.sizes.some(count => count > 0);
+        },
+
         get typeTotals() {
             let totals = {};
             let grand = 0;
@@ -84,14 +94,13 @@
             const max = Math.max(...this.dailyData.map(day =>
                 this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0)
             ), 1);
-            return Math.ceil(max * 1.1) || 1;
+            return this.hasEventData ? (Math.ceil(max * 1.1) || 1) : 0;
         },
 
         yTicks() {
-            
             let max = this.stackMax;
             if (max === 0) return [0];
-            const target = 6; // aim for ~6 ticks
+            const target = 6;
             const rawStep = max / target;
             const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
             const step = Math.round(Math.ceil(rawStep / magnitude) * magnitude * 1e10) / 1e10;
@@ -231,12 +240,12 @@
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Event volume by type</h3>
 
             {{-- Empty state --}}
-            <div x-show="dailyData.length === 0" x-cloak class="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
+            <div x-show="!hasEventData" x-cloak class="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
                 No events for this period
             </div>
 
             {{-- Custom legend --}}
-            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-5">
+            <div x-show="hasEventData" class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-5">
                 <template x-for="t in eventTypes" :key="t">
                     <div class="flex items-center gap-1.5">
                         <span class="w-3 h-3 rounded-sm shrink-0" :class="typeColors[t]"></span>
@@ -247,59 +256,48 @@
                 </template>
             </div>
 
-            {{-- Chart container --}}
-            <div class="bg-gray-50 dark:bg-gray-900/40 rounded-lg p-3">
-                <div class="flex gap-2">
+            {{-- Chart --}}
+            <div x-show="hasEventData" class="flex gap-2">
+                {{-- Y-axis --}}
+                <div class="flex flex-col justify-between text-right pr-1 shrink-0" style="height: 220px;">
+                    <template x-for="(tick, i) in yTicks().slice().reverse()" :key="'yt-'+i">
+                        <span class="text-[10px] text-gray-400 dark:text-gray-500 leading-none" x-text="tick"></span>
+                    </template>
+                </div>
 
-                    {{-- Y-axis --}}
-                    <div class="flex flex-col justify-between text-right pr-3 shrink-0" style="height: 220px;">
-                        <template x-for="(tick, i) in yTicks().slice().reverse()" :key="'yt-'+i">
-                            <span class="text-[10px] text-gray-400 dark:text-gray-500 leading-none" x-text="tick"></span>
+                {{-- Chart area --}}
+                <div class="flex-1 relative overflow-visible" style="height: 220px;">
+                    <div class="absolute inset-0 flex items-end gap-1 px-2 overflow-visible border-b border-gray-200 dark:border-gray-700">
+                        <template x-for="(day, idx) in dailyData" :key="idx">
+                            <div class="flex flex-col items-center justify-end flex-1 h-full group relative z-10 overflow-visible"
+                                style="min-width: 8px;"
+                                @mouseenter="showTooltip($event, day)"
+                                @mousemove="updateTooltip($event)"
+                                @mouseleave="hideTooltip()">
+                                <template x-for="(t, ti) in [...eventTypes].reverse()" :key="'bar-'+idx+'-'+t">
+                                    <div class="w-full transition-all duration-300"
+                                        :class="[
+                                            typeColors[t],
+                                            ti === [...eventTypes].reverse().findIndex(x => (day[x] || 0) > 0) ? 'rounded-t-sm' : ''
+                                        ]"
+                                        :style="(day[t] || 0) > 0 ? 'height: ' + Math.max(stackPercent(day, t), 1) + '%' : 'height: 0%'"></div>
+                                </template>
+                            </div>
                         </template>
                     </div>
-                    <div class="w-px bg-gray-200 dark:bg-gray-700 self-stretch shrink-0"></div>
-
-                    {{-- Chart area --}}
-                    <div class="flex-1 min-w-0 relative">
-                        <div :style="dailyData.length > 89 ? 'width: 100%; overflow-x: visible;' : 'min-width: ' + (dailyData.length * 12) + 'px; overflow-x: auto;'">
-
-                            {{-- Bars --}}
-                            <div class="relative flex items-end gap-1 px-1 border-b border-gray-200 dark:border-gray-700" style="height: 220px; overflow: visible;">
-                                <template x-for="(day, idx) in dailyData" :key="idx">
-                                    <div class="flex flex-col items-center justify-end flex-1 h-full relative z-10"
-                                        style="min-width: 8px;"
-                                        @mouseenter="showTooltip($event, day)"
-                                        @mousemove="updateTooltip($event)"
-                                        @mouseleave="hideTooltip()">
-                                        {{-- Bar segments --}}
-                                        <template x-for="(t, ti) in [...eventTypes].reverse()" :key="'bar-'+idx+'-'+t">
-                                            <div class="w-full transition-all duration-300"
-                                                :class="[
-                                                    typeColors[t],
-                                                    ti === [...eventTypes].reverse().findIndex(x => (day[x] || 0) > 0) ? 'rounded-t-sm' : ''
-                                                ]"
-                                                :style="(day[t] || 0) > 0 ? 'height: ' + Math.max(stackPercent(day, t), 1) + '%' : 'height: 0%'"></div>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
-
-                            {{-- X-axis labels --}}
-                            <div class="flex gap-1 px-1 mt-2">
-                                <template x-for="(day, idx) in dailyData" :key="'label-'+idx">
-                                    <div class="flex-1 text-center" style="min-width: 8px;">
-                                        <span x-show="dailyData.length <= 12 || idx % Math.ceil(dailyData.length / 8) === 0"
-                                            class="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap"
-                                            x-text="day.date"></span>
-                                    </div>
-                                </template>
-                            </div>
-
-                        </div>
-                    </div>{{-- end chart area --}}
-                    
                 </div>
-            </div>{{-- end chart container --}}
+            </div>
+
+            {{-- X-axis labels --}}
+            <div x-show="hasEventData" class="flex gap-1 ml-38px mt-2">
+                <template x-for="(day, idx) in dailyData" :key="'label-'+idx">
+                    <div class="flex-1 text-center" style="min-width: 8px;">
+                        <span x-show="dailyData.length <= 12 || idx % Math.ceil(dailyData.length / 8) === 0"
+                            class="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap"
+                            x-text="day.date"></span>
+                    </div>
+                </template>
+            </div>
         </div>{{-- end Section 2 card --}}
 
         {{-- Section 3: Top folders + File extensions --}}
@@ -308,7 +306,7 @@
             <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Top folders by activity</h3>
                 <div x-show="folders.length === 0" x-cloak class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">No folder data</div>
-                <div class="space-y-3">
+                <div x-show="folders.length > 0" class="space-y-3">
                     <template x-for="(folder, idx) in folders" :key="idx">
                         <div>
                             <div class="flex items-center justify-between mb-1">
@@ -333,7 +331,7 @@
             <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">File extensions</h3>
                 <div x-show="extensions.length === 0" x-cloak class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">No extension data</div>
-                <div class="space-y-3">
+                <div x-show="extensions.length > 0" class="space-y-3">
                     <template x-for="(ext, idx) in extensions" :key="idx">
                         <div>
                             <div class="flex items-center justify-between mb-1">
@@ -356,7 +354,8 @@
         {{-- Section 4: File size distribution --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">File size distribution — events by size bucket</h3>
-            <div class="flex gap-2">
+            <div x-show="!hasSizeData" x-cloak class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">No size distribution data</div>
+            <div x-show="hasSizeData" class="flex gap-2">
                 {{-- Y-axis --}}
                 <div class="flex flex-col justify-between text-right pr-1" style="height: 200px;">
                     <template x-for="(tick, i) in sizeYTicks().slice().reverse()" :key="'syt-'+i">
@@ -382,7 +381,7 @@
                 </div>
             </div>
             {{-- X-axis labels --}}
-            <div class="flex gap-4 ml-38px mt-2">
+            <div x-show="hasSizeData" class="flex gap-4 ml-38px mt-2">
                 <template x-for="(bucket, idx) in sizeBuckets" :key="'sb-'+idx">
                     <div class="flex-1 text-center">
                         <span class="text-[10px] text-gray-400 dark:text-gray-500" x-text="bucket"></span>

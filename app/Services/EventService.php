@@ -291,7 +291,7 @@ class EventService
     public function getAnalyticsDailyByType(string $from, string $to): array
     {
         $rows = Event::select(
-                DB::raw("DATE(timestamp) as day"),
+                DB::raw("DATE(SUBSTR(timestamp, 1, 10)) as day"),
                 'event_type',
                 DB::raw('COUNT(*) as count')
             )

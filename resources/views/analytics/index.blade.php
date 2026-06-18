@@ -84,7 +84,7 @@
             const max = Math.max(...this.dailyData.map(day =>
                 this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0)
             ), 1);
-            return Math.ceil(max * 1.1); // 10% headroom so bars never touch ceiling
+            return Math.ceil(max * 1.1) || 1;
         },
 
         yTicks() {
@@ -94,10 +94,10 @@
             const target = 6; // aim for ~6 ticks
             const rawStep = max / target;
             const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
-            const step = Math.ceil(rawStep / magnitude) * magnitude;
+            const step = Math.round(Math.ceil(rawStep / magnitude) * magnitude * 1e10) / 1e10;
             const roundedMax = Math.ceil(max / step) * step;
             let ticks = [];
-            for (let i = 0; i <= roundedMax; i += step) ticks.push(i);
+            for (let i = 0; i <= roundedMax; i += step) ticks.push(parseFloat(i.toFixed(10)));
             return ticks;
         },
 
@@ -110,7 +110,7 @@
             const step = Math.ceil(rawStep / magnitude) * magnitude;
             const roundedMax = Math.ceil(max / step) * step;
             let ticks = [];
-            for (let i = 0; i <= roundedMax; i += step) ticks.push(i);
+            for (let i = 0; i <= roundedMax; i += step) ticks.push(parseFloat(i.toFixed(10)));
             return ticks;
         },
 

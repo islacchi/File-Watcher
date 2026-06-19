@@ -28,113 +28,190 @@
         $sizeBuckets = ['<10 KB', '10–50 KB', '50–200 KB', '200 KB–1 MB', '1–10 MB', '>10 MB'];
     @endphp
 
-    <div x-data="{
-    tooltip: { visible: false, x: 0, y: 0, day: null },
-        showTooltip(event, day) {
-            this.tooltip = {
-                visible: true,
-                x: event.clientX,
-                y: event.clientY + window.scrollY,
-                day: day
-            };
-        },
-        updateTooltip(event) {
-            if (this.tooltip.visible) {
-                this.tooltip.x = event.clientX;
-                this.tooltip.y = event.clientY + window.scrollY;
+    <div
+        x-data="{
+            tooltip: { visible: false, x: 0, y: 0, day: null },
+            showTooltip(event, day) {
+                this.tooltip = { visible: true, x: event.clientX, y: event.clientY + window.scrollY, day: day };
+            },
+            updateTooltip(event) {
+                if (this.tooltip.visible) {
+                    this.tooltip.x = event.clientX;
+                    this.tooltip.y = event.clientY + window.scrollY;
+                }
+            },
+            hideTooltip() { this.tooltip.visible = false; },
+
+            range: '30d',
+            chartMode: 'single',
+            eventTypes: @js($eventTypes),
+            typeLabels: @js($typeLabels),
+            typeColors: @js($typeColors),
+            typeHex: @js($typeHex),
+            dailyByType: @js($dailyByType),
+            topFolders: @js($topFolders),
+            topExtensions: @js($topExtensions),
+            sizeDistribution: @js($sizeDistribution),
+            summaryCards: @js($summaryCards),
+            sizeBuckets: @js($sizeBuckets),
+
+            get dailyData() { return this.dailyByType[this.range] || this.dailyByType['7d']; },
+            get folders() { return this.topFolders[this.range] || this.topFolders['7d']; },
+            get extensions() { return this.topExtensions[this.range] || this.topExtensions['7d']; },
+            get sizes() { return this.sizeDistribution[this.range] || this.sizeDistribution['7d']; },
+            get summary() { return this.summaryCards[this.range] || this.summaryCards['7d']; },
+
+            get hasEventData() {
+                return this.dailyData.some(day =>
+                    this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0) > 0
+                );
+            },
+            get hasSizeData() { return this.sizes.some(count => count > 0); },
+
+            get typeTotals() {
+                let totals = {};
+                let grand = 0;
+                this.eventTypes.forEach(t => { totals[t] = 0; });
+                this.dailyData.forEach(day => {
+                    this.eventTypes.forEach(t => { totals[t] += (day[t] || 0); });
+                    grand += this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0);
+                });
+                return { totals, grand };
+            },
+
+            get totalSize() { return this.sizes.reduce((a, b) => a + b, 0); },
+            get maxSize() { return Math.max(...this.sizes, 1); },
+            get maxFolderCount() { return Math.max(...this.folders.map(f => f.count), 1); },
+            get maxExtCount() { return Math.max(...this.extensions.map(e => e.count), 1); },
+
+            get stackMax() {
+                const max = Math.max(...this.dailyData.map(day =>
+                    this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0)
+                ), 1);
+                return this.hasEventData ? (Math.ceil(max * 1.1) || 1) : 0;
+            },
+
+            yTicks() {
+                let max = this.stackMax;
+                if (max === 0) return [0];
+                const target = 6;
+                const rawStep = max / target;
+                const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+                const step = Math.round(Math.ceil(rawStep / magnitude) * magnitude * 1e10) / 1e10;
+                const roundedMax = Math.ceil(max / step) * step;
+                let ticks = [];
+                for (let i = 0; i <= roundedMax; i += step) ticks.push(parseFloat(i.toFixed(10)));
+                return ticks;
+            },
+
+            sizeYTicks() {
+                let max = this.maxSize;
+                if (max === 0) return [0];
+                const target = 5;
+                const rawStep = max / target;
+                const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+                const step = Math.ceil(rawStep / magnitude) * magnitude;
+                const roundedMax = Math.ceil(max / step) * step;
+                let ticks = [];
+                for (let i = 0; i <= roundedMax; i += step) ticks.push(parseFloat(i.toFixed(10)));
+                return ticks;
+            },
+
+            stackPercent(day, type) {
+                return this.stackMax > 0 ? ((day[type] || 0) / this.stackMax * 100) : 0;
+            },
+            sizePercent(count) {
+                return this.maxSize > 0 ? (count / this.maxSize * 100) : 0;
+            },
+            rangeLabel() {
+                return { '7d': 'over 7 days', '30d': 'over 30 days', '90d': 'over 90 days', '365d': 'over 1 year' }[this.range];
+            },
+        }"
+        x-init="
+            const self = $data;
+            console.log('range:', self.range);
+            console.log('dailyByType keys:', Object.keys(self.dailyByType));
+            let _chart = null;
+
+            function buildChartData() {
+                const daily = self.dailyByType[self.range] || self.dailyByType['7d'];
+                const mode = self.chartMode;
+                if (mode === 'multi') {
+                    return {
+                        labels: daily.map(d => d.date),
+                        datasets: self.eventTypes.map(t => ({
+                            label: self.typeLabels[t],
+                            data: daily.map(d => d[t] || 0),
+                            borderColor: self.typeHex[t],
+                            backgroundColor: self.typeHex[t] + '22',
+                            borderWidth: 2,
+                            pointRadius: daily.length <= 14 ? 3 : 1,
+                            pointHoverRadius: 5,
+                            tension: 0.3,
+                            fill: false,
+                        }))
+                    };
+                }
+                return {
+                    labels: daily.map(d => d.date),
+                    datasets: [{
+                        label: 'Total Events',
+                        data: daily.map(d => self.eventTypes.reduce((s, t) => s + (d[t] || 0), 0)),
+                        borderColor: '#818cf8',
+                        backgroundColor: '#818cf822',
+                        borderWidth: 2,
+                        pointRadius: daily.length <= 14 ? 3 : 1,
+                        pointHoverRadius: 5,
+                        tension: 0.3,
+                        fill: true,
+                    }]
+                };
             }
-        },
-        hideTooltip() {
-            this.tooltip.visible = false;
-        },
-        range: '7d',
-        eventTypes: @js($eventTypes),
-        typeLabels: @js($typeLabels),
-        typeColors: @js($typeColors),
-        dailyByType: @js($dailyByType),
-        topFolders: @js($topFolders),
-        topExtensions: @js($topExtensions),
-        sizeDistribution: @js($sizeDistribution),
-        summaryCards: @js($summaryCards),
-        sizeBuckets: @js($sizeBuckets),
 
-        get dailyData() { return this.dailyByType[this.range] || this.dailyByType['7d']; },
-        get folders() { return this.topFolders[this.range] || this.topFolders['7d']; },
-        get extensions() { return this.topExtensions[this.range] || this.topExtensions['7d']; },
-        get sizes() { return this.sizeDistribution[this.range] || this.sizeDistribution['7d']; },
-        get summary() { return this.summaryCards[this.range] || this.summaryCards['7d']; },
+            function initChart() {
+                const canvas = $refs.lineChart;
+                if (!canvas) return;
+                const isDark = document.documentElement.classList.contains('dark');
+                const gridColor = isDark ? '#374151' : '#e5e7eb';
+                const tickColor = isDark ? '#9ca3af' : '#6b7280';
+                if (_chart) { _chart.destroy(); _chart = null; }
+                _chart = new Chart(canvas.getContext('2d'), {
+                    type: 'line',
+                    data: buildChartData(),
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: {
+                                display: self.chartMode === 'multi',
+                                labels: { color: tickColor, boxWidth: 12, font: { size: 11 } }
+                            },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            x: { ticks: { color: tickColor, maxTicksLimit: 8, font: { size: 10 } }, grid: { color: gridColor } },
+                            y: { beginAtZero: true, ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor } }
+                        }
+                    }
+                });
+            }
 
-        get hasEventData() {
-            return this.dailyData.some(day =>
-                this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0) > 0
-            );
-        },
+            function refreshChart() {
+                if (!_chart) return;
+                const d = buildChartData();
+                _chart.data.labels = d.labels;
+                _chart.data.datasets = d.datasets;
+                _chart.options.plugins.legend.display = self.chartMode === 'multi';
+                _chart.update('none');
+            }
 
-        get hasSizeData() {
-            return this.sizes.some(count => count > 0);
-        },
+            $nextTick(() => initChart());
+            $watch('range', () => $nextTick(() => refreshChart()));
+            $watch('chartMode', () => $nextTick(() => refreshChart()));
+        "
+    >
 
-        get typeTotals() {
-            let totals = {};
-            let grand = 0;
-            this.eventTypes.forEach(t => { totals[t] = 0; });
-            this.dailyData.forEach(day => {
-                this.eventTypes.forEach(t => { totals[t] += (day[t] || 0); });
-                grand += this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0);
-            });
-            return { totals, grand };
-        },
-
-        get totalSize() { return this.sizes.reduce((a, b) => a + b, 0); },
-        get maxSize() { return Math.max(...this.sizes, 1); },
-        get maxFolderCount() { return Math.max(...this.folders.map(f => f.count), 1); },
-        get maxExtCount() { return Math.max(...this.extensions.map(e => e.count), 1); },
-
-        get stackMax() {
-            const max = Math.max(...this.dailyData.map(day =>
-                this.eventTypes.reduce((s, t) => s + (day[t] || 0), 0)
-            ), 1);
-            return this.hasEventData ? (Math.ceil(max * 1.1) || 1) : 0;
-        },
-
-        yTicks() {
-            let max = this.stackMax;
-            if (max === 0) return [0];
-            const target = 6;
-            const rawStep = max / target;
-            const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
-            const step = Math.round(Math.ceil(rawStep / magnitude) * magnitude * 1e10) / 1e10;
-            const roundedMax = Math.ceil(max / step) * step;
-            let ticks = [];
-            for (let i = 0; i <= roundedMax; i += step) ticks.push(parseFloat(i.toFixed(10)));
-            return ticks;
-        },
-
-        sizeYTicks() {
-            let max = this.maxSize;
-            if (max === 0) return [0];
-            const target = 5;
-            const rawStep = max / target;
-            const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
-            const step = Math.ceil(rawStep / magnitude) * magnitude;
-            const roundedMax = Math.ceil(max / step) * step;
-            let ticks = [];
-            for (let i = 0; i <= roundedMax; i += step) ticks.push(parseFloat(i.toFixed(10)));
-            return ticks;
-        },
-
-        stackPercent(day, type) {
-            return this.stackMax > 0 ? ((day[type] || 0) / this.stackMax * 100) : 0;
-        },
-
-        sizePercent(count) {
-            return this.maxSize > 0 ? (count / this.maxSize * 100) : 0;
-        },
-
-        rangeLabel() {
-            return { '7d': 'over 7 days', '30d': 'over 30 days', '90d': 'over 90 days', '365d': 'over 1 year' }[this.range];
-        }
-    }">
         {{-- Global tooltip portal --}}
         <div
             x-show="tooltip.visible"
@@ -156,7 +233,6 @@
                 </div>
             </template>
         </div>
-
 
         {{-- Section 1: Summary metric cards --}}
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -219,7 +295,7 @@
 
         </div>
 
-        {{-- Header --}}
+        {{-- Range picker --}}
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-lg font-bold text-gray-900 dark:text-white"></h1>
             <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
@@ -234,74 +310,36 @@
             </div>
         </div>
 
+        {{-- Section 2: Event volume line chart --}}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Event volume by type</h3>
+                <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                    <button
+                        @click="chartMode = 'single'"
+                        :class="chartMode === 'single' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'"
+                        class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
+                    >Total</button>
+                    <button
+                        @click="chartMode = 'multi'"
+                        :class="chartMode === 'multi' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'"
+                        class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
+                    >By type</button>
+                </div>
+            </div>
 
-        {{-- Section 2: Event volume by type (stacked bar chart) --}}
-        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6 relative">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Event volume by type</h3>
-
-            {{-- Empty state --}}
             <div x-show="!hasEventData" x-cloak class="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
                 No events for this period
             </div>
 
-            {{-- Custom legend --}}
-            <div x-show="hasEventData" class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-5">
-                <template x-for="t in eventTypes" :key="t">
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-3 h-3 rounded-sm shrink-0" :class="typeColors[t]"></span>
-                        <span class="text-xs text-gray-600 dark:text-gray-400" x-text="typeLabels[t]"></span>
-                        <span class="text-xs text-gray-400 dark:text-gray-500"
-                            x-text="typeTotals.grand > 0 ? Math.round(typeTotals.totals[t] / typeTotals.grand * 100) + '%' : '0%'"></span>
-                    </div>
-                </template>
+            <div x-show="hasEventData" style="height: 260px;">
+                <canvas x-ref="lineChart"></canvas>
             </div>
-
-            {{-- Chart --}}
-            <div x-show="hasEventData" class="flex gap-2">
-                {{-- Y-axis --}}
-                <div class="flex flex-col justify-between text-right pr-1 shrink-0" style="height: 220px;">
-                    <template x-for="(tick, i) in yTicks().slice().reverse()" :key="'yt-'+i">
-                        <span class="text-[10px] text-gray-400 dark:text-gray-500 leading-none" x-text="tick"></span>
-                    </template>
-                </div>
-
-                {{-- Chart area --}}
-                <div class="flex-1 relative overflow-visible" style="height: 220px;">
-                    <div class="absolute inset-0 flex items-end gap-1 px-2 overflow-visible border-b border-gray-200 dark:border-gray-700">
-                        <template x-for="(day, idx) in dailyData" :key="idx">
-                            <div class="flex flex-col items-center justify-end flex-1 h-full group relative z-10 overflow-visible"
-                                style="min-width: 8px;"
-                                @mouseenter="showTooltip($event, day)"
-                                @mousemove="updateTooltip($event)"
-                                @mouseleave="hideTooltip()">
-                                <template x-for="(t, ti) in [...eventTypes].reverse()" :key="'bar-'+idx+'-'+t">
-                                    <div class="w-full transition-all duration-300"
-                                        :class="[
-                                            typeColors[t],
-                                            ti === [...eventTypes].reverse().findIndex(x => (day[x] || 0) > 0) ? 'rounded-t-sm' : ''
-                                        ]"
-                                        :style="(day[t] || 0) > 0 ? 'height: ' + Math.max(stackPercent(day, t), 1) + '%' : 'height: 0%'"></div>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
-
-            {{-- X-axis labels --}}
-            <div x-show="hasEventData" class="flex gap-1 ml-38px mt-2">
-                <template x-for="(day, idx) in dailyData" :key="'label-'+idx">
-                    <div class="flex-1 text-center" style="min-width: 8px;">
-                        <span x-show="dailyData.length <= 12 || idx % Math.ceil(dailyData.length / 8) === 0"
-                            class="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap"
-                            x-text="day.date"></span>
-                    </div>
-                </template>
-            </div>
-        </div>{{-- end Section 2 card --}}
+        </div>
 
         {{-- Section 3: Top folders + File extensions --}}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
             {{-- Top folders --}}
             <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Top folders by activity</h3>
@@ -349,6 +387,7 @@
                     </template>
                 </div>
             </div>
+
         </div>
 
         {{-- Section 4: File size distribution --}}
@@ -364,7 +403,6 @@
                 </div>
                 {{-- Chart area --}}
                 <div class="flex-1 relative overflow-visible" style="height: 200px;">
-                    {{-- Bars --}}
                     <div class="absolute inset-0 flex items-end gap-4 px-2 overflow-visible">
                         <template x-for="(count, idx) in sizes" :key="idx">
                             <div class="flex flex-col items-center justify-end flex-1 h-full group relative z-10 overflow-visible">

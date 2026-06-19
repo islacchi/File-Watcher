@@ -42,7 +42,7 @@
             },
             hideTooltip() { this.tooltip.visible = false; },
 
-            range: '30d',
+            range: '7d',
             chartMode: 'single',
             eventTypes: @js($eventTypes),
             typeLabels: @js($typeLabels),
@@ -328,7 +328,7 @@
                 </div>
             </div>
 
-            <div x-show="!hasEventData" x-cloak class="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
+            <div x-show="!hasEventData" x-cloak class="flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm" style="height: 260px;">
                 No events for this period
             </div>
 
@@ -343,7 +343,9 @@
             {{-- Top folders --}}
             <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Top folders by activity</h3>
-                <div x-show="folders.length === 0" x-cloak class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">No folder data</div>
+                <div x-show="folders.length === 0" x-cloak class="flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm" style="min-height: 120px;">
+                    No folder data
+                </div>
                 <div x-show="folders.length > 0" class="space-y-3">
                     <template x-for="(folder, idx) in folders" :key="idx">
                         <div>
@@ -368,7 +370,9 @@
             {{-- File extensions --}}
             <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">File extensions</h3>
-                <div x-show="extensions.length === 0" x-cloak class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">No extension data</div>
+                <div x-show="extensions.length === 0" x-cloak class="flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm" style="min-height: 120px;">
+                    No extension data
+                </div>
                 <div x-show="extensions.length > 0" class="space-y-3">
                     <template x-for="(ext, idx) in extensions" :key="idx">
                         <div>
@@ -393,7 +397,9 @@
         {{-- Section 4: File size distribution --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">File size distribution — events by size bucket</h3>
-            <div x-show="!hasSizeData" x-cloak class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">No size distribution data</div>
+            <div x-show="!hasSizeData" x-cloak class="flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm" style="min-height: 200px;">
+                No size distribution data
+            </div>
             <div x-show="hasSizeData" class="flex gap-2">
                 {{-- Y-axis --}}
                 <div class="flex flex-col justify-between text-right pr-1" style="height: 200px;">

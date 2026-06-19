@@ -182,6 +182,13 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                            animation: {
+                                duration: 1000,
+                                easing: 'easeInOutQuart',
+                                y: {
+                                    from: (ctx) => ctx.chart.scales.y.bottom
+                                }
+                            },
                         interaction: { mode: 'index', intersect: false },
                         plugins: {
                             legend: {
@@ -204,7 +211,7 @@
                 _chart.data.labels = d.labels;
                 _chart.data.datasets = d.datasets;
                 _chart.options.plugins.legend.display = self.chartMode === 'multi';
-                _chart.update('none');
+                _chart.update();
             }
             
             function buildSizeChartData() {

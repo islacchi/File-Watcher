@@ -132,6 +132,7 @@
             console.log('range:', self.range);
             console.log('dailyByType keys:', Object.keys(self.dailyByType));
             let _chart = null;
+            let _sizeChart = null;
 
             function buildChartData() {
                 const daily = self.dailyByType[self.range] || self.dailyByType['7d'];
@@ -205,10 +206,65 @@
                 _chart.options.plugins.legend.display = self.chartMode === 'multi';
                 _chart.update('none');
             }
+            
+            function buildSizeChartData() {
+                const sizes = $data.sizeDistribution[$data.range] || $data.sizeDistribution['7d'];
+                return {
+                    labels: $data.sizeBuckets,
+                    datasets: [{
+                        label: 'Events',
+                        data: sizes,
+                        backgroundColor: '#3b82f6',
+                        hoverBackgroundColor: '#60a5fa',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }]
+                };
+            }
+
+            function initSizeChart() {
+                const canvas = $refs.sizeChart;
+                if (!canvas) return;
+                const isDark = document.documentElement.classList.contains('dark');
+                const gridColor = isDark ? '#374151' : '#e5e7eb';
+                const tickColor = isDark ? '#9ca3af' : '#6b7280';
+                if (_sizeChart) { _sizeChart.destroy(); _sizeChart = null; }
+                _sizeChart = new Chart(canvas.getContext('2d'), {
+                    type: 'bar',
+                    data: buildSizeChartData(),
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => ctx.parsed.y.toLocaleString() + ' events'
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor } },
+                            y: { beginAtZero: true, ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor } }
+                        }
+                    }
+                });
+            }
+
+            function refreshSizeChart() {
+                if (!_sizeChart) return;
+                const d = buildSizeChartData();
+                _sizeChart.data.labels = d.labels;
+                _sizeChart.data.datasets = d.datasets;
+                _sizeChart.update('none');
+            }
+
 
             $nextTick(() => initChart());
+            $nextTick(() => initSizeChart());
             $watch('range', () => $nextTick(() => refreshChart()));
             $watch('chartMode', () => $nextTick(() => refreshChart()));
+            $watch('range', () => $nextTick(() => refreshSizeChart()));
         "
     >
 
@@ -397,40 +453,13 @@
         {{-- Section 4: File size distribution --}}
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">File size distribution — events by size bucket</h3>
+
             <div x-show="!hasSizeData" x-cloak class="flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm" style="min-height: 200px;">
                 No size distribution data
             </div>
-            <div x-show="hasSizeData" class="flex gap-2">
-                {{-- Y-axis --}}
-                <div class="flex flex-col justify-between text-right pr-1" style="height: 200px;">
-                    <template x-for="(tick, i) in sizeYTicks().slice().reverse()" :key="'syt-'+i">
-                        <span class="text-[10px] text-gray-400 dark:text-gray-500 leading-none" x-text="tick"></span>
-                    </template>
-                </div>
-                {{-- Chart area --}}
-                <div class="flex-1 relative overflow-visible" style="height: 200px;">
-                    <div class="absolute inset-0 flex items-end gap-4 px-2 overflow-visible">
-                        <template x-for="(count, idx) in sizes" :key="idx">
-                            <div class="flex flex-col items-center justify-end flex-1 h-full group relative z-10 overflow-visible">
-                                <div class="absolute bottom-full mb-2 z-20 hidden group-hover:block bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap pointer-events-none"
-                                     :class="idx === 0 ? 'left-0' : idx === sizes.length - 1 ? 'right-0' : ''">
-                                    <div class="font-semibold" x-text="sizeBuckets[idx]"></div>
-                                    <div x-text="count.toLocaleString() + ' events'"></div>
-                                </div>
-                                <div class="w-full bg-blue-500 rounded-t-md transition-all duration-500 group-hover:bg-blue-400"
-                                     :style="'height: ' + sizePercent(count) + '%'"></div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
-            {{-- X-axis labels --}}
-            <div x-show="hasSizeData" class="flex gap-4 ml-38px mt-2">
-                <template x-for="(bucket, idx) in sizeBuckets" :key="'sb-'+idx">
-                    <div class="flex-1 text-center">
-                        <span class="text-[10px] text-gray-400 dark:text-gray-500" x-text="bucket"></span>
-                    </div>
-                </template>
+
+            <div x-show="hasSizeData" style="height: 200px;">
+                <canvas x-ref="sizeChart"></canvas>
             </div>
         </div>
 

@@ -1,398 +1,299 @@
-# File Watcher
+<p align="center">
+    <img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="300" alt="Laravel Logo">
+</p>
 
-![Python](https://img.shields.io/badge/python-3.10+-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Dependencies](https://img.shields.io/badge/dependencies-1-lightgrey)
+<p align="center">
+    <img src="https://img.shields.io/badge/PHP-8.2+-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP">
+    <img src="https://img.shields.io/badge/Laravel-12-FF2D20?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel">
+    <img src="https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
+    <img src="https://img.shields.io/badge/Alpine.js-8BC0D0?style=for-the-badge&logo=alpine.js&logoColor=black" alt="Alpine.js">
+    <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
+    <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite">
+</p>
 
-Monitors a directory for changes to Excel, Word, PDF, and image files.
-Logs all events (create, modify, delete, rename, move) to a SQLite database.
-Detects changes that occurred while the script was not running on every restart.
-Auto-recovers if the watched drive goes offline.
+<p align="center">
+    <img src="https://img.shields.io/badge/Status-Active-22c55e?style=flat-square" alt="Status">
+    <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License">
+</p>
 
----
+<h1 align="center">File Watcher Laravel UI</h1>
 
-## Prerequisites
-
-- Python 3.10 or higher
-- `watchdog` — the only dependency, installed via `requirements.txt`
-- No database server, no running services, no XAMPP — SQLite is built into Python
-
----
-
-## Project Structure
-
-```
-filewatcher/
-├── config.ini        ← your configuration (edit this)
-├── main.py           ← entry point
-├── db.py             ← SQLite database layer
-├── diff.py           ← startup diff and directory scanner
-├── handler.py        ← live watchdog event handler
-├── logger.py         ← centralized logging setup
-├── utils.py          ← shared hashing and path utilities
-├── watcher.py        ← observer startup and reconnect loop
-├── query.py          ← CLI tool for reading logs
-├── .gitignore        ← excludes cache, db, and log files from git
-└── requirements.txt  ← Python dependencies
-```
+<p align="center">
+    A read-only Laravel web interface for monitoring file system changes on a network drive. <br>
+    Pairs with a Python file watcher that logs events to a SQLite database.
+</p>
 
 ---
 
-## Setup
+## Features
 
-### 1. Install Python 3.10+
-Download from https://python.org — check "Add Python to PATH" during install.
-
-### 2. Install dependencies
-Open a terminal in the filewatcher folder and run:
-```
-pip install -r requirements.txt
-```
-
-### 3. Edit config.ini
-Change at minimum:
-- `watch_directory` → the folder you want to monitor (can be a UNC path e.g. `\\server\share`)
-- `log_directory`   → where the SQLite database and log file will be saved (keep OUTSIDE watch_directory)
-
-> **Note on large drives:** If `watch_directory` points to the root of a large drive or
-> network share, the first startup scan will take longer as it hashes all matching files.
-> The terminal will show an estimated time to completion and progress updates every 50 files.
-> Every subsequent startup is significantly faster due to the mtime pre-filter.
-
-### 4. Run manually to test
-```
-python main.py
-```
-
----
-
-## Configuration Reference
-
-All settings live in `config.ini`. No code changes needed.
-
-| Setting | Section | Default | Description |
-|---|---|---|---|
-| `watch_directory` | `[watcher]` | — | Full path to the directory to monitor |
-| `recursive` | `[watcher]` | `true` | Watch subdirectories recursively |
-| `reconnect_delay` | `[watcher]` | `30` | Seconds to wait before retrying if drive goes offline |
-| `move_window` | `[watcher]` | `10` | Seconds to hold unmatched creates/deletes before confirming them as genuine events |
-| `heartbeat_interval` | `[watcher]` | `5` | Seconds between heartbeat writes to the config table (used by Laravel UI health check) |
-| `watch_extensions` | `[filters]` | see file | Whitelist of file extensions to track |
-| `ignore_prefixes` | `[filters]` | `~$, .~, ~` | Filename prefixes to ignore (Office lock files) |
-| `exclude_directories` | `[filters]` | — | Directory names or paths to skip entirely |
-| `log_directory` | `[storage]` | — | Where to save `filelog.db` and `filewatcher.log` |
-| `db_name` | `[storage]` | `filelog.db` | SQLite database filename |
-| `retention_days` | `[storage]` | `0` | Days to keep events before auto-purge (0 = keep forever) |
-| `hash_algorithm` | `[snapshot]` | `md5` | Hashing algorithm for file fingerprinting |
-
----
-
-## Log Files
-
-Two log outputs are written to `log_directory` on every run:
-
-- **`filelog.db`** — SQLite database containing all file change events and the current snapshot
-- **`filewatcher.log`** — rotating text log of all script activity including startup, errors, and reconnects. Rotates at 5MB, keeps last 5 files.
-
----
-
-## Reading the Logs
-
-### Option 1 — CLI query tool (quickest)
-
-```bash
-python query.py                          # last 50 events
-python query.py --limit 100             # show more results
-python query.py --type DELETED          # filter by event type
-python query.py --type RENAMED          # filter by event type
-python query.py --file budget.xlsx      # search by filename
-python query.py --today                 # events from today only
-python query.py --date 2026-05-26       # events from a specific date
-python query.py --summary               # count of each event type
-```
-
-Filters stack — `--type DELETED --today` shows only today's deletes.
-
-### Option 2 — DB Browser for SQLite (visual)
-
-Download free from https://sqlitebrowser.org. Open `filelog.db` from your
-`log_directory`, click the **Browse Data** tab, and select the `events` or
-`snapshots` table from the dropdown.
-
-### Option 3 — Python directly
-
-```python
-import sqlite3
-conn = sqlite3.connect(r"C:\path\to\LOGS\filelog.db")
-for row in conn.execute("SELECT * FROM events ORDER BY timestamp DESC LIMIT 50"):
-    print(row)
-```
-
----
-
-## Events Table Reference
-
-### Columns
-| Column     | Description                                                         |
-|------------|---------------------------------------------------------------------|
-| timestamp  | ISO 8601 datetime of the event                                      |
-| event_type | See event types table below                                         |
-| src_path   | File path where the event occurred (source path for renames/moves)  |
-| dest_path  | Destination path — populated for RENAMED, MOVED, MOVED_AND_RENAMED  |
-| file_size  | Size in bytes at time of event                                      |
-| md5_hash   | MD5 fingerprint of file contents after the event                    |
-| prev_hash  | MD5 fingerprint before the change — populated for MODIFIED events only |
-
-### Event types
-| Event type                    | Meaning                                              |
-|-------------------------------|------------------------------------------------------|
-| `CREATED`                     | A new file appeared in the watched directory         |
-| `MODIFIED`                    | An existing file's contents changed                  |
-| `DELETED`                     | A file was permanently removed                       |
-| `RENAMED`                     | Filename changed, file stayed in the same folder     |
-| `MOVED`                       | File moved to a different folder, filename unchanged |
-| `MOVED_AND_RENAMED`           | File moved to a different folder and renamed         |
-| `CREATED (offline)`           | File was created while the script was not running    |
-| `MODIFIED (offline)`          | File was modified while the script was not running   |
-| `DELETED (offline)`           | File was deleted while the script was not running    |
-| `RENAMED (offline)`           | File was renamed while the script was not running    |
-| `MOVED (offline)`             | File was moved while the script was not running      |
-| `MOVED_AND_RENAMED (offline)` | File was moved and renamed while script was off      |
-
-### Useful SQL queries
-
-**See only deleted files:**
-```sql
-SELECT * FROM events WHERE event_type LIKE '%DELETED%'
-```
-
-**See only renames:**
-```sql
-SELECT * FROM events WHERE event_type LIKE '%RENAMED%'
-```
-
-**See all offline changes:**
-```sql
-SELECT * FROM events WHERE event_type LIKE '%offline%'
-```
-
-**Track a specific file:**
-```sql
-SELECT * FROM events WHERE src_path LIKE '%filename.pdf%'
-```
-
-**Find all events sharing the same file version:**
-```sql
-SELECT * FROM events WHERE md5_hash = 'paste_hash_here'
-```
-
-**Events from a specific date:**
-```sql
-SELECT * FROM events WHERE timestamp LIKE '2026-05-26%'
-```
-
----
-
-## Path Normalization
-
-All file paths are stored and compared as lowercase strings. This prevents
-false-positive `DELETED (offline)` events on Windows network drives where
-`os.walk()` and the stored snapshot may return the same path in different
-cases (e.g. `\\Kyle\bid docs\` vs `\\kyle\bid docs\`).
-
-> **Note:** The original casing of filenames and directories is not preserved
-> in the database. This is intentional — see Known Limitations below.
-
-> **If you reset the snapshots table** (e.g. `DELETE FROM snapshots`), the next
-> startup will log every existing file as `CREATED (offline)`. This is expected
-> and only happens once — the snapshot rebuilds itself on that restart and all
-> subsequent startups will diff correctly.
-
----
-
-## Companion UI
-
-A Laravel web interface for this script is available at:
-
-```bash
-git clone https://github.com/islacchi/File-Watcher.git
-```
-
-It reads directly from `filelog.db` and provides a dashboard, analytics charts,
-events log with hash-based file lineage search, snapshot browser, and live
-health monitoring via the heartbeat and status keys.
-
----
-
-## Config Table
-
-The `config` table in `filelog.db` stores script metadata readable by external
-tools such as the Laravel UI:
-
-| Key | Description |
-|-----|-------------|
-| `watch_directory` | The directory currently being monitored |
-| `log_directory` | Where logs and the database are stored |
-| `retention_days` | Current retention setting |
-| `script_version` | Version string from `main.py` |
-| `started_at` | ISO 8601 timestamp of last startup |
-| `status` | `scanning` during startup diff, `live` when active, `offline` on clean shutdown |
-| `heartbeat` | ISO 8601 timestamp updated every `heartbeat_interval` seconds — used to determine if the script is currently alive |
+- **Dashboard** — Real-time metrics, sparkline chart, event type breakdown, and recent activity feed
+- **Analytics** — Multi-range charts (7d / 30d / 90d / 1y) with stacked bar chart, top folders, file extensions, and size distribution
+- **Events Log** — Filterable and paginated table with search by filename, path, or MD5 hash; date range, event type, and extension filters
+- **Snapshot** — Current file state with expandable directory tree, stale file detection, auto-refreshes every 15s
+- **File Timeline** — Complete event history tracking files across renames and moves via MD5 hash linking
+- **Hash Search** — Clicking any MD5 hash in the Events Log filters all events sharing that file version, enabling full file lineage tracing
+- **Health Monitoring** — Live/offline status indicator via heartbeat polling from the Python script
+- **Auto-refresh** — Change-driven polling that reloads the page only when new events are detected
+- **Dark Mode** — Class-based toggle with localStorage persistence
 
 ---
 
 ## Architecture
 
 ```
-python main.py
-      │
-      ▼
-Load config.ini          [config.py]
-      │
-      ▼
-Setup logging            [logger.py]  → filewatcher.log + console
-      │
-      ▼
-Watch dir available?     [main.py]    → waits if drive not mounted yet
-      │
-      ▼
-Open / create database   [db.py]      → filelog.db, creates tables + indexes
-      │
-      ▼
-Purge old events         [db.py]      → deletes rows older than retention_days
-      │                               → 0 = keep forever
-      ▼
-── STARTUP DIFF ──────────────────────────────────────────────────
-      │
-      ▼
-Scan watch directory     [diff.py]    → normalize paths to lowercase
-      │                               → mtime pre-filter → reuse stored hash
-      │                               → parallel hash remaining files + ETA
-      ▼
-Diff snapshot vs disk    [diff.py]    → hash match: RENAMED / MOVED /
-      │                                 MOVED_AND_RENAMED / CREATED / DELETED
-      ▼
-Log offline events       [db.py]      → log_events_batch() + upsert_snapshots_batch()
-      │                               → db.flush() ensures single commit
-      ▼
-── HEARTBEAT ─────────────────────────────────────────────────────
-      │
-      ▼
-Heartbeat thread starts  [main.py]    → daemon thread, upserts config.heartbeat
-      │                                 every heartbeat_interval seconds
-      ▼
-── LIVE WATCHER ──────────────────────────────────────────────────
-      │
-      ▼
-Watchdog observer starts [watcher.py] → attached to watch_dir, auto-reconnects
-      │
-      ▼ (loops on every file system event)
-File system event fires  [handler.py] → on_created / on_modified
-      │                                  on_deleted / on_moved
-      ▼
-Extension + prefix filter             → skip ignore_prefixes, check whitelist
-      │
-      ▼
-Classify event           [handler.py]
-      │
-      │  on_deleted  → hash stored in pending_deletes (path, hash) composite key
-      │               → sweep thread confirms DELETE after move_window expires
-      │
-      │  on_created  → retries compute_hash up to 5x with 0.5s delay
-      │               → (UNC shares fire CREATE before file is fully written)
-      │               → checks pending_deletes for hash match → MOVED/RENAMED
-      │               → no match yet → parks in pending_creates and waits
-      │
-      │  on_deleted  → also checks pending_creates for CREATE-before-DELETE
-      │  (cont.)       moves (SMB can fire CREATE before DELETE on UNC paths)
-      │               → hash match found → MOVED/RENAMED logged immediately
-      │
-      │  on_moved    → watchdog sees both sides → clean MOVED/RENAMED, no
-      │               hash matching needed
-      ▼
-Log live event           [db.py]      → log_event() + upsert_snapshot()
-      │                               → all paths normalized to lowercase
-      │                               → writes batched, committed every 50
-      │                                 writes or 1 second, whichever first
-      │
-      └──────────────────────────────── loops back to next event
+app/
+├── Enums/          # EventType enum with badge colors and labels
+├── Http/
+│   ├── Controllers/# Dashboard, Event, File, Snapshot, Health, Analytics
+│   └── Requests/  # EventFilter, SnapshotFilter, FileTimeline
+├── Models/         # Event, Snapshot, Config (read-only)
+├── Services/       # EventService, SnapshotService, ConfigService, Formatter
+├── Providers/      # ViewServiceProvider (shared layout data)
+└── View/Models/    # DashboardViewModel, EventViewModel, SnapshotViewModel
 
-── QUERY (separate tool) ─────────────────────────────────────────
-
-python query.py          [query.py]   → reads filelog.db directly
-                                      → filter by type, file, date
+resources/views/
+├── components/
+│   └── layouts/
+│       └── app.blade.php       # Shared layout: sidebar, topbar, offline banner
+├── analytics/
+│   └── index.blade.php         # Analytics page with Alpine.js charts
+├── dashboard.blade.php
+├── events/index.blade.php
+├── files/timeline.blade.php
+└── snapshot/
+    ├── index.blade.php
+    └── _tree.blade.php         # AJAX partial for directory tree
 ```
 
 ---
 
-## Known Limitations
+## Pages
 
-- **First run on large drives is slow** — every matching file must be MD5 hashed to build the initial snapshot. On a network drive with thousands of files this can take several minutes. Every run after the first is fast due to the mtime pre-filter.
-
-- **Move detection on UNC network shares** — Windows SMB can fire the `CREATE` event before the `DELETE` event for the same move operation, sometimes seconds apart. The script handles both orderings: DELETE-first moves are resolved via `pending_deletes`, CREATE-first moves are resolved via `pending_creates`. If no matching event arrives within `move_window` seconds, the events are confirmed as genuine CREATED and DELETED. Increase `move_window` in `config.ini` if moves on slow network drives are still not being detected correctly.
-
-- **SMB file write lag** — on UNC network shares, the `CREATE` event can fire before the file's contents are fully written over the network. The script retries hashing the new file up to 5 times with a 0.5 second delay to give the transfer time to complete before attempting hash-based move resolution.
-
-- **Bulk operations may cause missed live events (Windows)** — watchdog uses the `ReadDirectoryChangesW` API which has a fixed-size event buffer. If a large number of files change simultaneously (e.g. a bulk copy or mass rename), the buffer can overflow and watchdog will silently miss some live events. Any missed events will be detected and logged as `(offline)` variants on the next restart when the startup diff runs. This is an OS-level constraint with no workaround within the script.
-
-- **Network drive hashing is slower than local** — MD5 hashing over a network connection is limited by network bandwidth, not disk speed. Pointing `watch_directory` to a specific subfolder rather than the drive root significantly reduces startup time.
-
-- **No content logging** — the script records that a file changed and its MD5 hash, but does not store the file's contents or a diff of what changed inside it.
-
-- **Paths stored as lowercase** — all paths in the database are normalized to lowercase. This is intentional (see Path Normalization above) but means the original casing of filenames and directories is not preserved in the log.
-
-- **MODIFIED events on UNC shares** — many applications (Word, Excel) do not write to files in place. They write to a temp file and swap it in, which watchdog sees as DELETE + CREATE rather than MODIFIED. On UNC network shares this is common. The startup diff correctly identifies these as MODIFIED (offline) on the next restart by comparing hashes.
+| Page | Route | Description |
+|------|-------|-------------|
+| **Dashboard** | `/filewatcher/dashboard` | Metrics, sparkline, event type bars, recent activity |
+| **Analytics** | `/filewatcher/analytics` | Multi-range charts and breakdowns |
+| **Events Log** | `/filewatcher/events` | Filterable event table with pagination |
+| **Snapshot** | `/filewatcher/snapshot` | Current file states and directory tree |
+| **File Timeline** | `/filewatcher/files?path=...` | Full event history for a single file |
 
 ---
 
-## Task Scheduler Setup (Windows)
+## Analytics
 
-To run automatically on startup:
+The analytics page is precomputed server-side across four date ranges and rendered entirely client-side via Alpine.js with no additional requests on range switch.
 
-1. Open Task Scheduler → Create Task
-2. **General tab**
-   - Name: File Watcher
-   - Check: "Run whether user is logged on or not"
-   - Check: "Run with highest privileges"
+### Date Ranges
 
-3. **Triggers tab**
-   - New trigger → At startup
+| Pill | Range | Chart grouping |
+|------|-------|----------------|
+| 7d | Last 7 days | Daily bars, scrollable |
+| 30d | Last 30 days | Daily bars, scrollable |
+| 90d | Last 90 days | Daily bars, compressed |
+| 1y | Last 365 days | Weekly bars, compressed |
 
-4. **Actions tab**
-   - Action: Start a program
-   - Program: `C:\Python312\python.exe` (run `where python` to find your actual path)
-   - Arguments: `main.py`
-   - Start in: `C:\path\to\filewatcher` (full path to this folder)
+### Summary Cards
 
-5. **Settings tab**
-   - UNCHECK: "Stop the task if it runs longer than 3 days"
-   - Select: "Do not start a new instance" if already running
+- **Total events** — count for the selected range
+- **Daily average** — total divided by number of days
+- **Most active type** — event type with highest count and its percentage
+- **Total data affected** — sum of `file_size` across all events, formatted (B / KB / MB / GB)
 
-> **Network drives:** If the watched share is not mounted yet when the script
-> starts at boot, the script will wait patiently until the path becomes
-> available rather than crashing.
+### Charts
+
+**Event volume by type** — stacked bar chart with per-type color coding, hover tooltip showing date, per-type counts, and total. Tooltip uses a fixed-position portal to avoid overflow clipping. Y-axis uses dynamic magnitude-based tick scaling. 1y range uses PHP-aggregated weekly grouping.
+
+**Top folders by activity** — horizontal bar list showing the top 10 directories by event count, with percentage labels. Folder paths are extracted from `dirname(src_path)` and display the last two path segments.
+
+**File extensions** — horizontal bar list showing the top 8 extensions by count. Extension is extracted using the last dot in the filename to prevent compound extensions from appearing as full filenames.
+
+**File size distribution** — bar chart with 6 size buckets: `<10 KB`, `10–50 KB`, `50–200 KB`, `200 KB–1 MB`, `1–10 MB`, `>10 MB`. Bars use the same hover tooltip pattern.
 
 ---
 
-## Linux / macOS (systemd)
+## Database
 
-For a persistent background service on Linux, create `/etc/systemd/system/filewatcher.service`:
+The UI connects to an existing SQLite database created by the Python script. All tables are read-only.
 
-```ini
-[Unit]
-Description=File Watcher
+### `events` — Permanent log of every file change
 
-[Service]
-ExecStart=/usr/bin/python3 /path/to/filewatcher/main.py
-Restart=on-failure
-WorkingDirectory=/path/to/filewatcher
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | `INTEGER PK` | Auto-increment |
+| `timestamp` | `TEXT` | ISO 8601 datetime |
+| `event_type` | `TEXT` | CREATED / MODIFIED / DELETED / RENAMED / MOVED / MOVED_AND_RENAMED (+ offline variants) |
+| `src_path` | `TEXT` | Source file path (UNC or local) |
+| `dest_path` | `TEXT` | Destination path for RENAMED / MOVED / MOVED_AND_RENAMED |
+| `file_size` | `INTEGER` | Size in bytes |
+| `md5_hash` | `TEXT` | Hash after the event |
+| `prev_hash` | `TEXT` | Hash before the event (MODIFIED only) |
 
-[Install]
-WantedBy=multi-user.target
+### `snapshots` — Last known state of every watched file
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | `INTEGER PK` | Auto-increment |
+| `path` | `TEXT UNIQUE` | Current file path |
+| `size` | `INTEGER` | File size |
+| `mtime` | `REAL` | Unix timestamp |
+| `md5_hash` | `TEXT` | Current hash |
+| `last_seen` | `TEXT` | ISO 8601 timestamp |
+
+### `config` — Script metadata (written by Python)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `key` | `TEXT PK` | `watch_directory`, `started_at`, `heartbeat`, `status`, `script_version` |
+| `value` | `TEXT` | Corresponding value |
+| `updated` | `TEXT` | ISO 8601 timestamp |
+
+---
+
+## Design System
+
+Built with **Tailwind CSS v4** and **Alpine.js**. Dark mode uses a class-based strategy (`dark` on `<html>`) toggled via Alpine and persisted to `localStorage`.
+
+### Tailwind v4 Notes
+
+Dynamic Alpine `:class` bindings are not scanned by Tailwind v4's build-time scanner. Classes used in dynamic bindings are safelisted via `@source inline()` in `app.css`:
+
+```css
+@source inline("ml-60 ml-16 w-60 w-16 translate-x-4.5 translate-x-0.5 dark:bg-gray-800 dark:bg-gray-700 dark:border-gray-700");
 ```
 
-Then enable it:
+Custom dark mode variant is defined as:
+
+```css
+@custom-variant dark (&:is(.dark *));
 ```
-sudo systemctl enable filewatcher
-sudo systemctl start filewatcher
+
+IDE warnings about unknown `@source`, `@custom-variant` are cosmetic — suppress via `.vscode/settings.json`:
+
+```json
+{
+    "css.lint.unknownAtRules": "ignore"
+}
 ```
+
+### Event Type Colors
+
+| Type | Color | Hex |
+|------|-------|-----|
+| CREATED | `bg-green-500` | `#22c55e` |
+| MODIFIED | `bg-blue-500` | `#3b82f6` |
+| DELETED | `bg-red-500` | `#ef4444` |
+| RENAMED | `bg-yellow-500` | `#eab308` |
+| MOVED | `bg-teal-400` | `#2dd4bf` |
+| MOVED & RENAMED | `bg-indigo-400` | `#818cf8` |
+
+---
+
+## Reusable Components
+
+| Component | Usage | Props |
+|-----------|-------|-------|
+| `<x-event-badge>` | Events table, dashboard, timeline | `label`, `color` |
+| `<x-metric-card>` | Dashboard cards | `title`, `value`, `trend`, `icon`, `sparkline` |
+| `<x-file-path>` | All file path displays | `path`, `truncated` |
+| `<x-hash-display>` | Hash columns — click to filter by file version | `hash`, `truncated`, `searchable` |
+| `<x-timeline-dot>` | File timeline | `color` |
+| `<x-directory-tree>` | Snapshot sidebar | `nodes`, `current-directory`, `level` |
+| `<x-filter-tabs>` | Events quick-filter tabs | `tabs`, `active`, `base-url` |
+| `<x-empty-state>` | Empty table states | `title`, `description`, `icon` |
+
+---
+
+## Prerequisites
+
+- PHP 8.2+
+- Composer
+- Node.js 18+ and npm
+- SQLite (PHP extension enabled)
+
+---
+
+## Setup
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/islacchi/File-Watcher.git
+cd File-Watcher
+
+# 2. Install PHP dependencies
+composer install
+
+# 3. Configure environment
+cp .env.example .env
+```
+
+Edit `.env` to point to your SQLite database:
+
+```env
+DB_CONNECTION=sqlite
+DB_DATABASE=C:/path/to/logs/filelog.db
+```
+
+```bash
+# 4. Generate application key
+php artisan key:generate
+
+# 5. Install and build frontend assets
+npm install
+npm run build
+
+# 6. Start the development server
+php artisan serve
+```
+
+Visit `http://localhost:8000` — the root URL redirects to `/filewatcher/dashboard`.
+
+---
+
+## Development
+
+```bash
+# Start Laravel dev server
+php artisan serve
+
+# Watch for frontend changes (Vite HMR)
+npm run dev
+
+# Build frontend for production
+npm run build
+```
+
+---
+
+## Script Integration
+
+The Laravel UI pairs with a companion **Python file watcher** available at:
+
+```bash
+gh repo clone islacchi/Python-File-Watcher
+```
+
+The script:
+
+1. Monitors a network drive for file system changes using `watchdog`
+2. Logs CREATED, MODIFIED, DELETED, RENAMED, MOVED, and MOVED_AND_RENAMED events to the SQLite database
+3. Maintains a `snapshots` table with current file state and MD5 hashes
+4. Writes a heartbeat timestamp to the `config` table every **5 seconds** and updates the `status` key to `live` on startup and `offline` on clean shutdown
+
+### Health Check Logic
+
+The health endpoint (`/filewatcher/health`) determines online/offline status in priority order:
+
+1. **Primary** — reads the `status` key from the `config` table. The Python script writes `live` on startup and `offline` on shutdown. This is the most reliable indicator.
+2. **Fallback 1** — if no `status` key exists, checks the `heartbeat` timestamp. The script writes every 5 seconds; a heartbeat older than **12 seconds** (1 missed cycle + buffer) is treated as offline.
+3. **Fallback 2** — if no heartbeat exists (older script versions), checks the last event timestamp. Offline if no event within **60 seconds**.
+
+### Move Detection on UNC Network Shares
+
+On UNC paths (`\\server\share`), Windows SMB can fire `CREATE` before `DELETE` for the same move operation — sometimes seconds apart. The Python script handles this with a `move_window` (default **10 seconds**): it holds unmatched creates and deletes in memory and resolves pairs as MOVED or MOVED_AND_RENAMED if a hash match is found within the window. If no match is found before the window expires, the events are logged as genuine CREATED and DELETED.
+
+---
+
+## License
+
+This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

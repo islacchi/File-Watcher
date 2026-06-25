@@ -169,12 +169,36 @@
                 };
             }
 
+            function getGridColors() {
+                const isDark = document.documentElement.classList.contains('dark');
+                return {
+                    gridColor: isDark ? '#4b5563' : '#e5e7eb',
+                    tickColor: isDark ? '#9ca3af' : '#6b7280',
+                    legendColor: isDark ? '#9ca3af' : '#6b7280',
+                };
+            }
+
+            function syncChartAppearance(chart) {
+                if (!chart) return;
+                const { gridColor, tickColor, legendColor } = getGridColors();
+                if (chart.options.scales.x) {
+                    chart.options.scales.x.grid.color = gridColor;
+                    chart.options.scales.x.ticks.color = tickColor;
+                }
+                if (chart.options.scales.y) {
+                    chart.options.scales.y.grid.color = gridColor;
+                    chart.options.scales.y.ticks.color = tickColor;
+                }
+                if (chart.options.plugins?.legend) {
+                    chart.options.plugins.legend.labels.color = legendColor;
+                }
+                chart.update('none');
+            }
+
             function initChart() {
                 const canvas = $refs.lineChart;
                 if (!canvas) return;
-                const isDark = document.documentElement.classList.contains('dark');
-                const gridColor = isDark ? '#374151' : '#e5e7eb';
-                const tickColor = isDark ? '#9ca3af' : '#6b7280';
+                const { gridColor, tickColor, legendColor } = getGridColors();
                 if (_chart) { _chart.destroy(); _chart = null; }
                 _chart = new Chart(canvas.getContext('2d'), {
                     type: 'line',
@@ -193,7 +217,7 @@
                         plugins: {
                             legend: {
                                 display: self.chartMode === 'multi',
-                                labels: { color: tickColor, boxWidth: 12, font: { size: 11 } }
+                                labels: { color: legendColor, boxWidth: 12, font: { size: 11 } }
                             },
                             tooltip: { mode: 'index', intersect: false }
                         },
@@ -211,6 +235,7 @@
                 _chart.data.labels = d.labels;
                 _chart.data.datasets = d.datasets;
                 _chart.options.plugins.legend.display = self.chartMode === 'multi';
+                syncChartAppearance(_chart);
                 _chart.update();
             }
             
@@ -232,9 +257,7 @@
             function initSizeChart() {
                 const canvas = $refs.sizeChart;
                 if (!canvas) return;
-                const isDark = document.documentElement.classList.contains('dark');
-                const gridColor = isDark ? '#374151' : '#e5e7eb';
-                const tickColor = isDark ? '#9ca3af' : '#6b7280';
+                const { gridColor, tickColor } = getGridColors();
                 if (_sizeChart) { _sizeChart.destroy(); _sizeChart = null; }
                 _sizeChart = new Chart(canvas.getContext('2d'), {
                     type: 'bar',
@@ -263,9 +286,16 @@
                 const d = buildSizeChartData();
                 _sizeChart.data.labels = d.labels;
                 _sizeChart.data.datasets = d.datasets;
-                _sizeChart.update('none');
+                syncChartAppearance(_sizeChart);
             }
 
+
+            // Watch for dark mode changes and sync chart appearance
+            const darkObserver = new MutationObserver(() => {
+                syncChartAppearance(_chart);
+                syncChartAppearance(_sizeChart);
+            });
+            darkObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
             $nextTick(() => initChart());
             $nextTick(() => initSizeChart());

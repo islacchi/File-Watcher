@@ -29,9 +29,10 @@
 
 - **Dashboard** — Real-time metrics, sparkline chart, event type breakdown, and recent activity feed
 - **Analytics** — Multi-range charts (7d / 30d / 90d / 1y) with stacked bar chart, top folders, file extensions, and size distribution
-- **Events Log** — Filterable and paginated table with search, date range, event type, and extension filters
+- **Events Log** — Filterable and paginated table with search by filename, path, or MD5 hash; date range, event type, and extension filters
 - **Snapshot** — Current file state with expandable directory tree, stale file detection, auto-refreshes every 15s
 - **File Timeline** — Complete event history tracking files across renames and moves via MD5 hash linking
+- **Hash Search** — Clicking any MD5 hash in the Events Log filters all events sharing that file version, enabling full file lineage tracing
 - **Health Monitoring** — Live/offline status indicator via heartbeat polling from the Python script
 - **Auto-refresh** — Change-driven polling that reloads the page only when new events are detected
 - **Dark Mode** — Class-based toggle with localStorage persistence
@@ -121,9 +122,9 @@ The UI connects to an existing SQLite database created by the Python script. All
 |--------|------|-------------|
 | `id` | `INTEGER PK` | Auto-increment |
 | `timestamp` | `TEXT` | ISO 8601 datetime |
-| `event_type` | `TEXT` | CREATED / MODIFIED / DELETED / RENAMED / MOVED (+ offline variants) |
+| `event_type` | `TEXT` | CREATED / MODIFIED / DELETED / RENAMED / MOVED / MOVED_AND_RENAMED (+ offline variants) |
 | `src_path` | `TEXT` | Source file path (UNC or local) |
-| `dest_path` | `TEXT` | Destination path for RENAMED/MOVED |
+| `dest_path` | `TEXT` | Destination path for RENAMED / MOVED / MOVED_AND_RENAMED |
 | `file_size` | `INTEGER` | Size in bytes |
 | `md5_hash` | `TEXT` | Hash after the event |
 | `prev_hash` | `TEXT` | Hash before the event (MODIFIED only) |
@@ -143,7 +144,7 @@ The UI connects to an existing SQLite database created by the Python script. All
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `key` | `TEXT PK` | `watch_directory`, `started_at`, `heartbeat`, `script_version` |
+| `key` | `TEXT PK` | `watch_directory`, `started_at`, `heartbeat`, `status`, `script_version` |
 | `value` | `TEXT` | Corresponding value |
 | `updated` | `TEXT` | ISO 8601 timestamp |
 
@@ -195,7 +196,7 @@ IDE warnings about unknown `@source`, `@custom-variant` are cosmetic — suppres
 | `<x-event-badge>` | Events table, dashboard, timeline | `label`, `color` |
 | `<x-metric-card>` | Dashboard cards | `title`, `value`, `trend`, `icon`, `sparkline` |
 | `<x-file-path>` | All file path displays | `path`, `truncated` |
-| `<x-hash-display>` | Hash columns | `hash`, `truncated`, `searchable` |
+| `<x-hash-display>` | Hash columns — click to filter by file version | `hash`, `truncated`, `searchable` |
 | `<x-timeline-dot>` | File timeline | `color` |
 | `<x-directory-tree>` | Snapshot sidebar | `nodes`, `current-directory`, `level` |
 | `<x-filter-tabs>` | Events quick-filter tabs | `tabs`, `active`, `base-url` |
@@ -277,9 +278,19 @@ The script:
 1. Monitors a network drive for file system changes using `watchdog`
 2. Logs CREATED, MODIFIED, DELETED, RENAMED, MOVED, and MOVED_AND_RENAMED events to the SQLite database
 3. Maintains a `snapshots` table with current file state and MD5 hashes
-4. Writes a `heartbeat` timestamp to the `config` table every 30 seconds
+4. Writes a heartbeat timestamp to the `config` table every **5 seconds** and updates the `status` key to `live` on startup and `offline` on clean shutdown
 
-The health check endpoint (`/filewatcher/health`) reads the heartbeat timestamp. If no heartbeat is received within 90 seconds, the UI switches to **Offline** status and displays a banner. Events logged while offline are stored with an `(offline)` suffix on the event type and are merged into the canonical type counts throughout the UI.
+### Health Check Logic
+
+The health endpoint (`/filewatcher/health`) determines online/offline status in priority order:
+
+1. **Primary** — reads the `status` key from the `config` table. The Python script writes `live` on startup and `offline` on shutdown. This is the most reliable indicator.
+2. **Fallback 1** — if no `status` key exists, checks the `heartbeat` timestamp. The script writes every 5 seconds; a heartbeat older than **12 seconds** (1 missed cycle + buffer) is treated as offline.
+3. **Fallback 2** — if no heartbeat exists (older script versions), checks the last event timestamp. Offline if no event within **60 seconds**.
+
+### Move Detection on UNC Network Shares
+
+On UNC paths (`\\server\share`), Windows SMB can fire `CREATE` before `DELETE` for the same move operation — sometimes seconds apart. The Python script handles this with a `move_window` (default **10 seconds**): it holds unmatched creates and deletes in memory and resolves pairs as MOVED or MOVED_AND_RENAMED if a hash match is found within the window. If no match is found before the window expires, the events are logged as genuine CREATED and DELETED.
 
 ---
 

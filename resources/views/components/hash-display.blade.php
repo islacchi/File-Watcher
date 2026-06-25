@@ -12,9 +12,10 @@
 
         @if ($searchable)
             <a
-                href="{{ route('filewatcher.events', ['search' => $hash]) }}"
+                href="{{ route('filewatcher.events', ['search' => $hash, 'tab' => 'all']) }}"
                 class="font-mono text-xs text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                title="Search events with hash: {{ $hash }}"
+                title="Show all events with this file version"
+
             >
                 {{ $displayHash }}
             </a>

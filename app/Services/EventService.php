@@ -154,12 +154,14 @@ class EventService
     {
         $query = Event::query();
 
-        // Search by filename
+        // Search by filename or hash
         if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search): void {
                 $q->where('src_path', 'LIKE', "%{$search}%")
-                    ->orWhere('dest_path', 'LIKE', "%{$search}%");
+                    ->orWhere('dest_path', 'LIKE', "%{$search}%")
+                    ->orWhere('md5_hash', 'LIKE', "%{$search}%")
+                    ->orWhere('prev_hash', 'LIKE', "%{$search}%");
             });
         }
 

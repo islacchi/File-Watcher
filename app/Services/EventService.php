@@ -8,6 +8,7 @@ use App\Enums\EventType;
 use App\Models\Event;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -154,7 +155,7 @@ class EventService
     /**
      * Get filtered and paginated events.
      */
-    public function getFilteredEvents(array $filters, int $perPage = 50): LengthAwarePaginator
+    public function getFilteredEvents(array $filters, int $perPage = 50): Paginator
     {
         $query = Event::query();
 
@@ -273,6 +274,7 @@ class EventService
      */
     public function getExtensions(): Collection
     {
+        return Cache::remember('events_extensions', 300, function (): Collection {
         $extensions = Event::select('src_path')
             ->whereNotNull('src_path')
             ->get()
@@ -287,6 +289,7 @@ class EventService
             ->values();
 
         return $extensions;
+        });
     }
 
     /**

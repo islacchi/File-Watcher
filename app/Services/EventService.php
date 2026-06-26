@@ -114,38 +114,42 @@ class EventService
      */
     public function getDailyCountsForWeek(): array
     {
-        $results = [];
-        $now = Carbon::now();
+        return (array) Cache::remember('events_daily_week', 60, function (): array {
+            $results = [];
+            $now = Carbon::now();
 
-        for ($i = 6; $i >= 0; $i--) {
-            $day = $now->copy()->subDays($i)->startOfDay();
-            $nextDay = $day->copy()->addDay();
+            for ($i = 6; $i >= 0; $i--) {
+                $day = $now->copy()->subDays($i)->startOfDay();
+                $nextDay = $day->copy()->addDay();
 
-            $count = Event::where('timestamp', '>=', $day->toIso8601String())
-                ->where('timestamp', '<', $nextDay->toIso8601String())
-                ->count();
+                $count = Event::where('timestamp', '>=', $day->toIso8601String())
+                    ->where('timestamp', '<', $nextDay->toIso8601String())
+                    ->count();
 
-            $results[] = [
-                'date' => $day->format('M j'),
-                'count' => $count,
-            ];
-        }
+                $results[] = [
+                    'date' => $day->format('M j'),
+                    'count' => $count,
+                ];
+            }
 
-        return $results;
+            return $results;
+        });
     }
 
     /**
      * Get the daily event count for yesterday (for trend comparison).
      */
     public function getYesterdayCount(): int
-    {
+{
+    return (int) Cache::remember('events_yesterday_count', 300, function (): int {
         $yesterday = Carbon::now()->subDay()->startOfDay()->toIso8601String();
         $today = Carbon::now()->startOfDay()->toIso8601String();
 
         return Event::where('timestamp', '>=', $yesterday)
             ->where('timestamp', '<', $today)
             ->count();
-    }
+    });
+}
 
     /**
      * Get filtered and paginated events.

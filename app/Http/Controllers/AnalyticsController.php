@@ -8,6 +8,7 @@ use App\Services\EventService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Cache;
 
 class AnalyticsController extends Controller
 {
@@ -35,29 +36,38 @@ class AnalyticsController extends Controller
         $sizeDistribution = [];
         $summaryCards = [];
 
+        $daysMap = ['7d' => 7, '30d' => 30, '90d' => 90, '365d' => 365];
+
         foreach ($ranges as $key => $from) {
-            $dailyByType[$key] = $key === '365d'
-                ? $this->eventService->getAnalyticsWeeklyByType($from, $to)
-                : $this->eventService->getAnalyticsDailyByType($from, $to);
+            $cached = Cache::remember("analytics_{$key}", 60, function () use ($key, $from, $to, $daysMap): array {
+                $daily = $key === '365d'
+                    ? $this->eventService->getAnalyticsWeeklyByType($from, $to)
+                    : $this->eventService->getAnalyticsDailyByType($from, $to);
 
-            $topFolders[$key] = $this->eventService->getAnalyticsTopFolders($from, $to);
-            $topExtensions[$key] = $this->eventService->getAnalyticsTopExtensions($from, $to);
-            $sizeDistribution[$key] = $this->eventService->getAnalyticsSizeDistribution($from, $to);
+                $totals    = $this->eventService->getAnalyticsTotals($from, $to);
+                $mostActive = $this->eventService->getAnalyticsMostActiveType($from, $to);
+                $daysCount = $daysMap[$key] ?? 1;
 
-            $totals = $this->eventService->getAnalyticsTotals($from, $to);
-            $mostActive = $this->eventService->getAnalyticsMostActiveType($from, $to);
+                return [
+                    'daily'      => $daily,
+                    'folders'    => $this->eventService->getAnalyticsTopFolders($from, $to),
+                    'extensions' => $this->eventService->getAnalyticsTopExtensions($from, $to),
+                    'sizes'      => $this->eventService->getAnalyticsSizeDistribution($from, $to),
+                    'summary'    => [
+                        'total'      => $totals['total'],
+                        'avg'        => round($totals['total'] / $daysCount),
+                        'mostActive' => $mostActive['type'],
+                        'pct'        => $mostActive['pct'],
+                        'data'       => $this->formatBytes($totals['totalSize']),
+                    ],
+                ];
+            });
 
-            $daysMap = ['7d' => 7, '30d' => 30, '90d' => 90, '365d' => 365];
-            $daysCount = $daysMap[$key] ?? 1;
-            $dailyAvg = round($totals['total'] / $daysCount);
-
-            $summaryCards[$key] = [
-                'total' => $totals['total'],
-                'avg' => $dailyAvg,
-                'mostActive' => $mostActive['type'],
-                'pct' => $mostActive['pct'],
-                'data' => $this->formatBytes($totals['totalSize']),
-            ];
+            $dailyByType[$key]      = $cached['daily'];
+            $topFolders[$key]       = $cached['folders'];
+            $topExtensions[$key]    = $cached['extensions'];
+            $sizeDistribution[$key] = $cached['sizes'];
+            $summaryCards[$key]     = $cached['summary'];
         }
 
         // Static metadata

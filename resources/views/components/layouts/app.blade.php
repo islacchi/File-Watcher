@@ -56,7 +56,7 @@
             const data = await resp.json();
             if (data.id > 0 && data.id !== this.lastEventId) {
                 this.lastEventId = data.id;
-                location.reload();
+                this.refreshCurrent();
             }
         } catch {}
     },
@@ -73,18 +73,79 @@
             this.changePollingInterval = null;
         }
     },
+    navigate(url, push = true, scrollTop = true) {
+        if (this._navigating) return;
+        this._navigating = true;
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.text())
+            .then(html => {
+                this.swapContent(html, scrollTop);
+                if (push) history.pushState({}, '', url);
+                this._navigating = false;
+            })
+            .catch(() => { window.location.href = url; });
+    },
+    swapContent(html, scrollTop = true) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const main = document.getElementById('page-content');
+        const newMain = doc.getElementById('page-content');
+        if (main && newMain) {
+            main.innerHTML = newMain.innerHTML;
+            Alpine.initTree(main);
+            if (scrollTop) window.scrollTo({ top: 0 });
+        }
+        const nav = document.getElementById('sidebar-nav');
+        const newNav = doc.getElementById('sidebar-nav');
+        if (nav && newNav) {
+            nav.innerHTML = newNav.innerHTML;
+            Alpine.initTree(nav);
+        }
+        const bc = document.getElementById('breadcrumb-label');
+        const newBc = doc.getElementById('breadcrumb-label');
+        if (bc && newBc) bc.textContent = newBc.textContent;
+    },
+    refreshCurrent() {
+        this.navigate(window.location.pathname + window.location.search, false, false);
+    },
+    handleLinkClick(e) {
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        const a = e.target.closest('a[href]');
+        if (!a) return;
+        const href = a.getAttribute('href');
+        if (!href || href.startsWith('#') || a.target === '_blank' || a.hasAttribute('download') || a.hasAttribute('x-no-swap')) return;
+        const url = new URL(a.href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+        if (url.pathname + url.search === window.location.pathname + window.location.search) return;
+        e.preventDefault();
+        this.navigate(url.pathname + url.search);
+    },
+    handleSubmit(e) {
+        const form = e.target;
+        if (!form || form.method.toUpperCase() !== 'GET') return;
+        if (form.hasAttribute('x-no-swap')) return;
+        e.preventDefault();
+        const data = new FormData(form);
+        const qs = new URLSearchParams(data).toString();
+        const action = form.getAttribute('action') || window.location.pathname;
+        const url = new URL(action, window.location.origin);
+        url.search = qs;
+        this.navigate(url.pathname + url.search);
+    },
     init() {
         this.checkHealth();
         this.pollingInterval = setInterval(() => this.checkHealth(), 2000);
         if (this.autoRefresh) {
             this.startChangePolling();
         }
+        window.addEventListener('popstate', () => {
+            this.navigate(window.location.pathname + window.location.search, false, false);
+        });
     },
     destroy() {
         if (this.pollingInterval) clearInterval(this.pollingInterval);
         this.stopChangePolling();
     }
-}" class="flex min-h-screen">
+}" class="flex min-h-screen" @click="handleLinkClick($event)" @submit="handleSubmit($event)">
 
     {{-- Sidebar --}}
     <aside
@@ -98,12 +159,12 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                 </svg>
-                <span x-show="sidebarOpen" x-transition.opacity class="font-bold text-sm whitespace-nowrap text-gray-900 dark:text-white">File Watcher</span>
+                <span x-show="sidebarOpen" class="font-bold text-sm whitespace-nowrap text-gray-900 dark:text-white">File Watcher</span>
             </div>
         </div>
 
         {{-- Navigation --}}
-        <nav class="flex-1 py-4 space-y-1 px-2">
+        <nav id="sidebar-nav" class="flex-1 py-4 space-y-1 px-2">
             @php
                 $navItems = [
                     ['route' => 'filewatcher.dashboard', 'label' => 'Dashboard', 'icon' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', 'count' => $eventsCountToday],
@@ -129,7 +190,7 @@
                     <svg class="w-5 h-5 shrink-0 transition-transform duration-200" :class="sidebarOpen ? '' : 'scale-110'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $item['icon'] }}"/>
                     </svg>
-                    <span x-show="sidebarOpen" x-transition.opacity class="whitespace-nowrap flex items-center gap-2">
+                    <span x-show="sidebarOpen" class="whitespace-nowrap flex items-center gap-2">
                         {{ $item['label'] }}
                         @if (isset($item['count']) && $item['count'] > 0)
                             <span class="inline-flex items-center justify-center min-w-5 h-4 px-1 text-[10px] font-bold rounded-full transition-colors duration-200
@@ -155,7 +216,7 @@
                 <svg class="w-5 h-5 transition-transform duration-200" :class="sidebarOpen ? '' : 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
                 </svg>
-                <span x-show="sidebarOpen" x-transition.opacity class="whitespace-nowrap">Collapse</span>
+                <span x-show="sidebarOpen" class="whitespace-nowrap">Collapse</span>
             </button>
         </div>
     </aside>
@@ -168,7 +229,7 @@
             <div class="flex items-center justify-between h-full px-6">
                 {{-- Left: Breadcrumb --}}
                 <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span>{{ $title ?? 'Dashboard' }}</span>
+                    <span id="breadcrumb-label">{{ $title ?? 'Dashboard' }}</span>
                 </div>
 
                 {{-- Right: Status + Dark Mode --}}
@@ -232,7 +293,7 @@
         </header>
 
         {{-- Page Content --}}
-        <main class="p-6">
+        <main id="page-content" class="p-6">
             {{ $slot }}
         </main>
     </div>

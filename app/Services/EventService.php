@@ -432,32 +432,27 @@ class EventService
      */
     public function getAnalyticsTopExtensions(string $from, string $to, int $limit = 8): array
     {
-        $rows = Event::select('src_path', DB::raw('COUNT(*) as count'))
+        $rows = Event::select('extension', DB::raw('COUNT(*) as count'))
             ->where('timestamp', '>=', $from)
             ->where('timestamp', '<=', $to)
-            ->whereNotNull('src_path')
-            ->where('src_path', 'LIKE', '%.%')
-            ->groupBy('src_path')
+            ->whereNotNull('extension')
+            ->where('extension', '!=', '')
+            ->groupBy('extension')
+            ->orderByDesc('count')
+            ->limit($limit)
             ->get();
 
-        // Extract true extension in PHP using pathinfo (last segment after last dot)
-        $extCounts = [];
-        foreach ($rows as $row) {
-            $ext = strtolower(pathinfo($row->src_path, PATHINFO_EXTENSION));
-            if ($ext === '') continue;
-            $extCounts[$ext] = ($extCounts[$ext] ?? 0) + (int) $row->count;
-        }
+        // Percentages are relative to the top-N shown here (matches the
+        // original behavior: total was computed after slicing to the top
+        // N, not against the full range), not the full range's total.
+        $total = (int) $rows->sum('count');
 
-        arsort($extCounts);
-        $extCounts = array_slice($extCounts, 0, $limit, true);
-
-        $total = array_sum($extCounts);
         $result = [];
-        foreach ($extCounts as $name => $count) {
+        foreach ($rows as $row) {
             $result[] = [
-                'name' => $name,
-                'count' => $count,
-                'pct' => $total > 0 ? round($count / $total * 100, 1) : 0,
+                'name' => $row->extension,
+                'count' => (int) $row->count,
+                'pct' => $total > 0 ? round($row->count / $total * 100, 1) : 0,
             ];
         }
 

@@ -32,6 +32,7 @@ class Event extends Model
         'file_size',
         'md5_hash',
         'prev_hash',
+        'extension',
     ];
 
     /**

@@ -17,6 +17,7 @@ Route::get('/', function () {
 Route::prefix('filewatcher')->name('filewatcher.')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
+    Route::get('/analytics/range/{key}', [AnalyticsController::class, 'range'])->name('analytics.range');
     Route::get('/events', [EventController::class, 'index'])->name('events');
     Route::get('/files', [FileController::class, 'timeline'])->name('files.timeline');
     Route::get('/snapshot/tree', [SnapshotController::class, 'tree'])->name('snapshot.tree');

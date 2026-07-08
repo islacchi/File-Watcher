@@ -43,6 +43,9 @@
             hideTooltip() { this.tooltip.visible = false; },
 
             range: '7d',
+            loadingRange: false,
+            rangeLoadError: false,
+            rangeUrlTemplate: @js(route('filewatcher.analytics.range', ['key' => '__RANGE__'])),
             chartMode: 'single',
             eventTypes: @js($eventTypes),
             typeLabels: @js($typeLabels),
@@ -54,6 +57,30 @@
             sizeDistribution: @js($sizeDistribution),
             summaryCards: @js($summaryCards),
             sizeBuckets: @js($sizeBuckets),
+
+            async setRange(key) {
+                this.range = key;
+                if (this.dailyByType[key]) {
+                    return; // already loaded, nothing to fetch
+                }
+                this.loadingRange = true;
+                this.rangeLoadError = false;
+                try {
+                    const resp = await fetch(this.rangeUrlTemplate.replace('__RANGE__', key));
+                    if (!resp.ok) throw new Error(`Range fetch failed: ${resp.status}`);
+                    const data = await resp.json();
+                    this.dailyByType[key]      = data.daily;
+                    this.topFolders[key]       = data.folders;
+                    this.topExtensions[key]    = data.extensions;
+                    this.sizeDistribution[key] = data.sizes;
+                    this.summaryCards[key]     = data.summary;
+                } catch (e) {
+                    this.rangeLoadError = true;
+                    this.range = this.dailyByType[key] ? key : '7d';
+                } finally {
+                    this.loadingRange = false;
+                }
+            },
 
             get dailyData() { return this.dailyByType[this.range] || this.dailyByType['7d']; },
             get folders() { return this.topFolders[this.range] || this.topFolders['7d']; },
@@ -391,15 +418,23 @@
         {{-- Range picker --}}
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-lg font-bold text-gray-900 dark:text-white"></h1>
-            <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
-                <template x-for="opt in [{k:'7d',l:'7d'},{k:'30d',l:'30d'},{k:'90d',l:'90d'},{k:'365d',l:'1y'}]" :key="opt.k">
-                    <button
-                        @click="range = opt.k"
-                        :class="range === opt.k ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
-                        class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors"
-                        x-text="opt.l"
-                    ></button>
-                </template>
+            <div class="flex items-center gap-2">
+                <svg x-show="loadingRange" x-cloak class="w-4 h-4 animate-spin text-indigo-500" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span x-show="rangeLoadError" x-cloak class="text-xs text-red-600 dark:text-red-400">Couldn't load that range</span>
+                <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                    <template x-for="opt in [{k:'7d',l:'7d'},{k:'30d',l:'30d'},{k:'90d',l:'90d'},{k:'365d',l:'1y'}]" :key="opt.k">
+                        <button
+                            @click="setRange(opt.k)"
+                            :disabled="loadingRange"
+                            :class="range === opt.k ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
+                            class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            x-text="opt.l"
+                        ></button>
+                    </template>
+                </div>
             </div>
         </div>
 

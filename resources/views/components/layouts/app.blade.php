@@ -22,6 +22,7 @@
     sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
     autoRefresh: localStorage.getItem('autoRefresh') === 'true',
     status: 'online',
+    healthFailures:0,
     pollingInterval: null,
     lastEventId: 0,
     changePollingInterval: null,
@@ -47,8 +48,14 @@
         try {
             const resp = await fetch('{{ route('filewatcher.health') }}');
             const data = await resp.json();
+            this.healthFailures = 0;
             this.status = data.status;
-        } catch { this.status = 'offline'; }
+        } catch {
+            this.healthFailures++;
+            if (this.healthFailures >= 2) {
+                this.status = 'offline';
+            }
+        }
     },
     async checkForChanges() {
         try {
@@ -246,13 +253,24 @@
                     </div>
 
                     {{-- Status Indicator (reads from shared parent polling) --}}
+                    {{-- Status Indicator (reads from shared parent polling) --}}
                     <div class="flex items-center gap-1.5">
                         <span
-                            :class="status === 'online' ? 'bg-green-500' : 'bg-red-500'"
+                            :class="{
+                                'bg-green-500': status === 'online',
+                                'bg-amber-500': status === 'scanning',
+                                'bg-red-500': status === 'offline',
+                            }"
                             class="w-2 h-2 rounded-full animate-pulse"
                         ></span>
-                        <span x-text="status === 'online' ? 'Live' : 'Offline'" class="text-xs font-medium"
-                            :class="status === 'online' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'"
+                        <span
+                            x-text="status === 'online' ? 'Live' : (status === 'scanning' ? 'Scanning...' : 'Offline')"
+                            class="text-xs font-medium"
+                            :class="{
+                                'text-green-700 dark:text-green-400': status === 'online',
+                                'text-amber-700 dark:text-amber-400': status === 'scanning',
+                                'text-red-700 dark:text-red-400': status === 'offline',
+                            }"
                         ></span>
                     </div>
 

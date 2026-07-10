@@ -16,13 +16,17 @@ class HealthController extends Controller
     ) {}
 
     /**
-     * Health check endpoint that returns online/offline status.
+     * Health check endpoint that returns online/scanning/offline status.
      *
      * Primary check: reads the "status" key from the config table.
-     * The Python script writes "live" on startup and "offline" on shutdown.
+     * The Python script writes "scanning" during its startup diff,
+     * "live" once that completes, and "offline" on shutdown.
      *
      * Fallback 1: checks the heartbeat timestamp (within 12 seconds).
      * Fallback 2: checks the last event timestamp (within 60 seconds).
+     * Fallback checks only ever resolve to online/offline — "scanning"
+     * is only ever reported when the Python script says so explicitly,
+     * since older script versions never wrote that value at all.
      *
      * Includes config metadata from the Python script for the frontend.
      */
@@ -32,7 +36,11 @@ class HealthController extends Controller
         $explicitStatus = $this->configService->getStatus();
 
         if ($explicitStatus !== null) {
-            $isOnline = $explicitStatus === 'live';
+            $status = match ($explicitStatus) {
+                'live' => 'online',
+                'scanning' => 'scanning',
+                default => 'offline',
+            };
         } else {
             // Fallback 1: check heartbeat (script writes every 5s, threshold 12s allows 1 missed cycle + buffer)
             $heartbeat = $this->configService->getFresh('heartbeat');
@@ -46,10 +54,12 @@ class HealthController extends Controller
                 $isOnline = $lastEvent !== null
                     && Carbon::parse($lastEvent->timestamp)->diffInSeconds(Carbon::now()) <= 60;
             }
+
+            $status = $isOnline ? 'online' : 'offline';
         }
 
         return response()->json([
-            'status' => $isOnline ? 'online' : 'offline',
+            'status' => $status,
             'heartbeat' => $this->configService->getFresh('heartbeat'),
             'watch_directory' => $this->configService->getWatchDirectory(),
             'script_version' => $this->configService->getScriptVersion(),

@@ -43,6 +43,7 @@
             hideTooltip() { this.tooltip.visible = false; },
 
             range: '7d',
+            rangeVersion: 0,
             loadingRange: false,
             rangeLoadError: false,
             rangeUrlTemplate: @js(route('filewatcher.analytics.range', ['key' => '__RANGE__'])),
@@ -60,6 +61,11 @@
 
             async setRange(key) {
                 this.range = key;
+                // Bumped on every call, cached or not, so the charts (which
+                // watch this instead of `range`) always redraw on click —
+                // reassigning `range` to a value it already holds does not
+                // reliably retrigger a $watch bound to `range` itself.
+                this.rangeVersion++;
                 if (this.dailyByType[key]) {
                     return; // already loaded, nothing to fetch
                 }
@@ -74,9 +80,15 @@
                     this.topExtensions[key]    = data.extensions;
                     this.sizeDistribution[key] = data.sizes;
                     this.summaryCards[key]     = data.summary;
+                    // The data the charts need just actually arrived —
+                    // bump again so the $watch below fires a second time
+                    // and redraws with the real numbers instead of
+                    // whatever was there (blank/7d fallback) at click time.
+                    this.rangeVersion++;
                 } catch (e) {
                     this.rangeLoadError = true;
                     this.range = this.dailyByType[key] ? key : '7d';
+                    this.rangeVersion++;
                 } finally {
                     this.loadingRange = false;
                 }
@@ -326,9 +338,9 @@
 
             $nextTick(() => initChart());
             $nextTick(() => initSizeChart());
-            $watch('range', () => $nextTick(() => refreshChart()));
+            $watch('rangeVersion', () => $nextTick(() => refreshChart()));
             $watch('chartMode', () => $nextTick(() => refreshChart()));
-            $watch('range', () => $nextTick(() => refreshSizeChart()));
+            $watch('rangeVersion', () => $nextTick(() => refreshSizeChart()));
         "
     >
 

@@ -122,8 +122,8 @@
         if (!href || href.startsWith('#') || a.target === '_blank' || a.hasAttribute('download') || a.hasAttribute('x-no-swap')) return;
         const url = new URL(a.href, window.location.origin);
         if (url.origin !== window.location.origin) return;
-        if (url.pathname + url.search === window.location.pathname + window.location.search) return;
         e.preventDefault();
+        if (url.pathname + url.search === window.location.pathname + window.location.search) return;
         this.navigate(url.pathname + url.search);
     },
     handleSubmit(e) {

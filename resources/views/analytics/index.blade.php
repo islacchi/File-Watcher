@@ -94,11 +94,11 @@
                 }
             },
 
-            get dailyData() { return this.dailyByType[this.range] || this.dailyByType['7d']; },
-            get folders() { return this.topFolders[this.range] || this.topFolders['7d']; },
-            get extensions() { return this.topExtensions[this.range] || this.topExtensions['7d']; },
-            get sizes() { return this.sizeDistribution[this.range] || this.sizeDistribution['7d']; },
-            get summary() { return this.summaryCards[this.range] || this.summaryCards['7d']; },
+            get dailyData() { return this.dailyByType[this.range] || []; },
+            get folders() { return this.topFolders[this.range] || []; },
+            get extensions() { return this.topExtensions[this.range] || []; },
+            get sizes() { return this.sizeDistribution[this.range] || this.sizeBuckets.map(() => 0); },
+            get summary() { return this.summaryCards[this.range] || { total: 0, avg: 0, mostActive: '—', pct: 0, data: '0 B' }; },
 
             get hasEventData() {
                 return this.dailyData.some(day =>
@@ -174,7 +174,7 @@
             let _sizeChart = null;
 
             function buildChartData() {
-                const daily = self.dailyByType[self.range] || self.dailyByType['7d'];
+                const daily = self.dailyByType[self.range] || [];
                 const mode = self.chartMode;
                 if (mode === 'multi') {
                     return {
@@ -279,7 +279,7 @@
             }
             
             function buildSizeChartData() {
-                const sizes = $data.sizeDistribution[$data.range] || $data.sizeDistribution['7d'];
+                 const sizes = $data.sizeDistribution[$data.range] || $data.sizeBuckets.map(() => 0);
                 return {
                     labels: $data.sizeBuckets,
                     datasets: [{

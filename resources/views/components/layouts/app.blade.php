@@ -104,12 +104,49 @@
         const nav = document.getElementById('sidebar-nav');
         const newNav = doc.getElementById('sidebar-nav');
         if (nav && newNav) {
-            nav.innerHTML = newNav.innerHTML;
-            Alpine.initTree(nav);
+            this.syncNavState(nav, newNav);
         }
         const bc = document.getElementById('breadcrumb-label');
         const newBc = doc.getElementById('breadcrumb-label');
         if (bc && newBc) bc.textContent = newBc.textContent;
+    },
+    syncNavState(nav, newNav) {
+        // Updates the sidebar's active-item highlight and badge counts
+        // in place, without ever replacing innerHTML or calling
+        // Alpine.initTree() on the nav. Every existing DOM node (and its
+        // Alpine bindings, like the label span's x-show attribute bound
+        // to sidebarOpen) stays exactly as it was — nothing is destroyed
+        // or re-mounted, so nothing replays an entrance transition on
+        // every navigation.
+        const oldLinks = nav.querySelectorAll('a[data-route]');
+        const newByRoute = {};
+        newNav.querySelectorAll('a[data-route]').forEach(a => {
+            newByRoute[a.dataset.route] = a;
+        });
+
+        oldLinks.forEach(a => {
+            const newA = newByRoute[a.dataset.route];
+            if (!newA) return;
+
+            // The <a> itself has no Alpine directives on it — safe to
+            // fully sync its classes (this is what actually moves the
+            // active highlight from the old page to the new one) and title.
+            a.className = newA.className;
+            const newTitle = newA.getAttribute('title');
+            if (newTitle !== null) a.setAttribute('title', newTitle);
+
+            // The label+badge span DOES have an x-show attribute bound
+            // to it. We keep that exact span node (so Alpine's existing
+            // binding on it is untouched) and only replace its CHILDREN —
+            // mutating innerHTML on a node doesn't retrigger its own
+            // x-show/x-transition, since that's keyed to the sidebarOpen
+            // expression changing, not to child DOM mutations.
+            const labelSpan = a.querySelector(':scope > span');
+            const newLabelSpan = newA.querySelector(':scope > span');
+            if (labelSpan && newLabelSpan) {
+                labelSpan.innerHTML = newLabelSpan.innerHTML;
+            }
+        });
     },
     refreshCurrent() {
         this.navigate(window.location.pathname + window.location.search, false, false);
@@ -187,6 +224,7 @@
                 @endphp
                 <a
                     href="{{ route($item['route']) }}"
+                    data-route="{{ $item['route'] }}"
                     class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
                         {{ $isActive
                             ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-l-2 border-indigo-600 scale-[1.02]'
@@ -253,7 +291,6 @@
                     </div>
 
                     {{-- Status Indicator (reads from shared parent polling) --}}
-                    {{-- Status Indicator (reads from shared parent polling) --}}
                     <div class="flex items-center gap-1.5">
                         <span
                             :class="{
@@ -319,6 +356,7 @@
     {{-- Offline Banner (reads from shared parent status) --}}
     <div
         x-show="status === 'offline'"
+        x-cloak
         x-transition
         class="fixed bottom-0 left-0 right-0 z-50 bg-red-600 text-white px-4 py-3 text-center text-sm font-medium shadow-lg"
     >
